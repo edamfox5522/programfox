@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Alcancía</title>
+<style>
+  /* Frasco de monedas: cada regalo cae como una moneda con la imagen del regalo y
+     llena el frasco con física. Abajo: el que más ha donado y el total.
+     En el enlace:  &estilo=1 frasco arcoíris | 2 cerdito | 3 cofre del tesoro | 4 esfera | 5 frasco de vidrio
+                    &top=0  quita la barra del Top Donador   &total=0  quita el total
+     Fuente recomendada: 500 x 600. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  body { display: grid; place-items: center; font-family: 'Segoe UI', 'Arial Black', system-ui, sans-serif; color: #fff; }
+  .stage { width: 500px; height: 600px; position: relative; }
+  canvas { position: absolute; left: 0; top: 0; width: 500px; height: 490px; }
+
+  .pills { position: absolute; left: 0; right: 0; top: 478px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .pill { display: flex; align-items: center; gap: 10px; padding: 7px 10px 7px 12px; border-radius: 99px;
+    background: rgba(24, 24, 28, .88); border: 1px solid rgba(255,255,255,.08); box-shadow: 0 6px 18px rgba(0,0,0,.45); white-space: nowrap; }
+  .medal { font-size: 24px; line-height: 1; }
+  .av { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #33333d; border: 2px solid rgba(255,255,255,.2); flex: none; display: grid; place-items: center; font-size: 18px; overflow: hidden; }
+  .av img { width: 100%; height: 100%; object-fit: cover; }
+  .who { font-weight: 900; font-style: italic; font-size: 17px; letter-spacing: .3px; text-transform: uppercase; max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
+  .val { display: flex; align-items: center; gap: 6px; padding: 5px 12px 5px 7px; border-radius: 99px; background: rgba(0,0,0,.45); font-weight: 900; font-style: italic; font-size: 18px; color: #ffd84a; }
+  .total { padding: 6px 14px 6px 8px; }
+  .total .val { background: none; padding: 0; font-size: 20px; }
+  .coin { width: 22px; height: 22px; border-radius: 50%; flex: none; background: radial-gradient(circle at 35% 30%, #fff3b0, #ffc928 45%, #e08a00 100%); box-shadow: inset 0 -2px 0 #b86a00; display: grid; place-items: center; }
+  .coin::after { content: '$'; font-size: 12px; font-weight: 900; font-style: normal; color: #a55f00; }
+  .pop { animation: pop .45s cubic-bezier(.2, 1.8, .4, 1); }
+  @keyframes pop { 0% { transform: scale(1.25); } 100% { transform: none; } }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <canvas id="c"></canvas>
+  <div class="pills">
+    <div class="pill" id="topPill"><span class="medal">🏅</span><div class="av" id="topAv">👤</div><span class="who" id="topName">Top donador</span><span class="val"><span class="coin"></span><span id="topVal">0</span></span></div>
+    <div class="pill total" id="totPill"><span class="val"><span class="coin"></span><span id="totVal">0</span></span></div>
+  </div>
+</div>
+
+<script src="pf-config.js"></script>
+<script src="supabase.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const DEMO = q.get('demo') === '1';
+  const NOMBRES = { arcoiris: 1, frasco: 1, cerdito: 2, cofre: 3, esfera: 4, vidrio: 5 };
+  const ESTILO = Number(q.get('estilo')) || NOMBRES[q.get('estilo')] || 1;
+  if (q.get('top') === '0') document.getElementById('topPill').style.display = 'none';
+  if (q.get('total') === '0') document.getElementById('totPill').style.display = 'none';
+  const W = 500, H = 490;
+  const stage = document.getElementById('stage');
+  const cv = document.getElementById('c');
+  const ctx = cv.getContext('2d');
+  const num = (n) => Number(n || 0).toLocaleString('en-US');
+
+  // Nítido en cualquier tamaño
+  function ajustar() {
+    let z = Math.min(innerWidth / 500, innerHeight / 600) * (Number(q.get('zoom')) || 1);
+    if (!(z > 0)) z = 1;
+    stage.style.zoom = z;
+    const dpr = (window.devicePixelRatio || 1) * z;
+    cv.width = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  addEventListener('resize', ajustar);
+  ajustar();
+
+  // ============================================================
+  //  ALCANCÍAS (5 estilos). Cada una tiene:
+  //   atras()  lo que se ve detrás de las monedas
+  //   frente() el vidrio / madera / metal que va delante
+  //   dentro   el borde interior donde chocan las monedas
+  //   entra    por dónde caen las monedas
+  // ============================================================
+  const CX = W / 2;
+  const arco = (cx, cy, rx, ry, frente) => { const p = new Path2D(); p.ellipse(cx, cy, rx, ry, 0, frente ? 0 : Math.PI, frente ? Math.PI : Math.PI * 2); return p; };
+  const elipse = (cx, cy, rx, ry) => { const p = new Path2D(); p.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); return p; };
+  const puntosElipse = (cx, cy, rx, ry, n = 56) => Array.from({ length: n }, (_, i) => [cx + Math.cos(i / n * Math.PI * 2) * rx, cy + Math.sin(i / n * Math.PI * 2) * ry]);
+  const curvaQ = (a, c, b, n = 8) => Array.from({ length: n }, (_, i) => { const t = (i + 1) / n, u = 1 - t; return [u * u * a[0] + 2 * u * t * c[0] + t * t * b[0], u * u * a[1] + 2 * u * t * c[1] + t * t * b[1]]; });
+  const curvaB = (a, c1, c2, b, n = 10) => Array.from({ length: n }, (_, i) => { const t = (i + 1) / n, u = 1 - t; return [u*u*u*a[0] + 3*u*u*t*c1[0] + 3*u*t*t*c2[0] + t*t*t*b[0], u*u*u*a[1] + 3*u*u*t*c1[1] + 3*u*t*t*c2[1] + t*t*t*b[1]]; });
+  function brillo(x, y, rx, ry, a, rot = 0) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(rx, ry));
+    g.addColorStop(0, `rgba(255,255,255,${a})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.scale(rx / Math.max(rx, ry), ry / Math.max(rx, ry));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, Math.max(rx, ry), 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  let giro = 0;
+
+  // ---------- 1 y 5: FRASCO (neón arcoíris o vidrio) ----------
+  function hacerFrasco(PAL, glow) {
+    const J = { l: 128, r: 372, top: 182, bottom: 462, rad: 42, neckL: 150, neckR: 350, neckTop: 70, shoulder: 136 };
+    const BOCA_RY = 15, BASE_RY = 20;
+    const p = new Path2D();
+    p.moveTo(J.neckL, J.neckTop); p.lineTo(J.neckL, J.shoulder);
+    p.bezierCurveTo(J.neckL, J.shoulder + 24, J.l, J.shoulder + 16, J.l, J.top);
+    p.lineTo(J.l, J.bottom - J.rad); p.quadraticCurveTo(J.l, J.bottom, J.l + J.rad, J.bottom);
+    p.lineTo(J.r - J.rad, J.bottom); p.quadraticCurveTo(J.r, J.bottom, J.r, J.bottom - J.rad);
+    p.lineTo(J.r, J.top); p.bezierCurveTo(J.r, J.shoulder + 16, J.neckR, J.shoulder + 24, J.neckR, J.shoulder);
+    p.lineTo(J.neckR, J.neckTop); p.ellipse(CX, J.neckTop, (J.neckR - J.neckL) / 2, BOCA_RY, 0, 0, Math.PI, true); p.closePath();
+    const FR = p;
+    // borde interior (para la física)
+    const a = 14, inB = J.bottom - 30, R = 34;
+    const d = [[J.neckL + 12, J.neckTop - 4], [J.neckL + 12, J.shoulder]];
+    d.push(...curvaB([J.neckL + 12, J.shoulder], [J.neckL + 12, J.shoulder + 20], [J.l + a, J.shoulder + 16], [J.l + a, J.top]));
+    d.push([J.l + a, inB - R], ...curvaQ([J.l + a, inB - R], [J.l + a, inB], [J.l + a + R, inB]));
+    d.push([J.r - a - R, inB], ...curvaQ([J.r - a - R, inB], [J.r - a, inB], [J.r - a, inB - R]));
+    d.push([J.r - a, J.top], ...curvaB([J.r - a, J.top], [J.r - a, J.shoulder + 16], [J.neckR - 12, J.shoulder + 20], [J.neckR - 12, J.shoulder]));
+    d.push([J.neckR - 12, J.neckTop - 4]);
+    const deg = () => {
+      if (ctx.createConicGradient) {
+        const g = ctx.createConicGradient(giro, CX, (J.neckTop + J.bottom) / 2);
+        PAL.forEach((c, i) => g.addColorStop(i / PAL.length, c)); g.addColorStop(1, PAL[0]); return g;
+      }
+      const g = ctx.createLinearGradient(J.l, J.bottom, J.r, J.neckTop);
+      PAL.forEach((c, i) => g.addColorStop(i / (PAL.length - 1), c)); return g;
+    };
+    const rosca = (y, rx, alto) => {
+      ctx.save();
+      const r = new Path2D(); r.ellipse(CX, y, rx, BOCA_RY, 0, 0, Math.PI); r.ellipse(CX, y - alto, rx, BOCA_RY, 0, Math.PI, 0, true); r.closePath();
+      ctx.globalAlpha = .85; ctx.fillStyle = deg(); ctx.fill(r); ctx.globalAlpha = 1;
+      const luz = ctx.createLinearGradient(0, y - alto - BOCA_RY, 0, y + BOCA_RY);
+      luz.addColorStop(0, 'rgba(255,255,255,.55)'); luz.addColorStop(.5, 'rgba(255,255,255,.05)'); luz.addColorStop(1, 'rgba(0,0,0,.25)');
+      ctx.fillStyle = luz; ctx.fill(r);
+      ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.stroke(arco(CX, y - alto, rx, BOCA_RY, true));
+      ctx.restore();
+    };
+    return {
+      dentro: d, entra: { x0: J.neckL + 30, x1: J.neckR - 30, y: J.neckTop + 12 }, lleno: J.neckTop + 30,
+      atras() {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,.035)'; ctx.fill(FR);
+        ctx.globalAlpha = .55; ctx.lineWidth = 5; ctx.strokeStyle = deg();
+        ctx.stroke(arco(CX, J.neckTop, (J.neckR - J.neckL) / 2 - 2, BOCA_RY - 1, false));
+        const bx = (J.r - J.l) / 2 - 16, by = J.bottom - 22;
+        ctx.globalAlpha = 1; ctx.fillStyle = deg(); ctx.fill(elipse(CX, by, bx, BASE_RY));
+        ctx.fillStyle = 'rgba(40, 44, 58, .92)'; ctx.fill(elipse(CX, by + 1, bx - 10, BASE_RY - 6));
+        ctx.restore();
+      },
+      frente() {
+        ctx.save();
+        const g = deg();
+        ctx.save(); ctx.shadowColor = glow; ctx.shadowBlur = 22; ctx.lineWidth = 5; ctx.strokeStyle = g; ctx.stroke(FR); ctx.restore();
+        ctx.save(); ctx.clip(FR); ctx.lineJoin = 'round';
+        ctx.globalAlpha = .28; ctx.lineWidth = 34; ctx.strokeStyle = g; ctx.stroke(FR);
+        ctx.globalAlpha = .75; ctx.lineWidth = 16; ctx.strokeStyle = g; ctx.stroke(FR);
+        ctx.globalAlpha = 1; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.stroke(FR);
+        brillo(J.l + 27, (J.top + J.bottom) / 2 - 20, 11, 140, .35);
+        brillo(J.r - 29, (J.top + J.bottom) / 2 - 30, 7, 110, .22);
+        ctx.restore();
+        ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.stroke(FR);
+        const rx = (J.neckR - J.neckL) / 2;
+        rosca(J.neckTop + 50, rx + 4, 8); rosca(J.neckTop + 33, rx + 9, 9); rosca(J.neckTop + 16, rx + 7, 8);
+        ctx.save(); ctx.shadowColor = 'rgba(255,255,255,.35)'; ctx.shadowBlur = 8;
+        ctx.lineWidth = 8; ctx.strokeStyle = g; ctx.stroke(arco(CX, J.neckTop, rx, BOCA_RY, true)); ctx.restore();
+        ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.stroke(arco(CX, J.neckTop - 2, rx - 1, BOCA_RY - 1, true));
+        ctx.lineWidth = 6; ctx.strokeStyle = g; ctx.stroke(arco(CX, J.neckTop, rx, BOCA_RY, false));
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.stroke(arco(CX, J.bottom - 22, (J.r - J.l) / 2 - 16, BASE_RY, true));
+        ctx.restore();
+      }
+    };
+  }
+
+  // ---------- 2: CERDITO de vidrio ----------
+  function hacerCerdito() {
+    const C = [235, 272], RX = 160, RY = 118;
+    const rosa = (a) => `rgba(255, 128, 185, ${a})`;
+    const piel = (x0, y0, x1, y1) => { const g = ctx.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, '#ffb6d5'); g.addColorStop(1, '#f06aa6'); return g; };
+    const pata = (x, y, osc) => {
+      ctx.save();
+      ctx.fillStyle = osc ? '#e0588f' : piel(x, y, x, y + 62);
+      ctx.beginPath(); ctx.roundRect(x - 22, y, 44, 60, [6, 6, 16, 16]); ctx.fill();
+      ctx.fillStyle = osc ? '#a33a68' : '#c24c80'; ctx.beginPath(); ctx.roundRect(x - 22, y + 46, 44, 14, [0, 0, 16, 16]); ctx.fill();
+      if (!osc) brillo(x - 9, y + 20, 6, 16, .45);
+      ctx.restore();
+    };
+    const oreja = (x, y, rot, osc) => {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+      ctx.fillStyle = osc ? '#d95590' : piel(-20, -40, 20, 10);
+      ctx.beginPath(); ctx.moveTo(-26, 8); ctx.quadraticCurveTo(-18, -44, 8, -52); ctx.quadraticCurveTo(26, -20, 24, 10); ctx.closePath(); ctx.fill();
+      if (!osc) { ctx.fillStyle = '#ff8fc0'; ctx.beginPath(); ctx.moveTo(-14, 4); ctx.quadraticCurveTo(-8, -30, 6, -38); ctx.quadraticCurveTo(16, -16, 14, 6); ctx.closePath(); ctx.fill(); }
+      ctx.restore();
+    };
+    return {
+      dentro: puntosElipse(C[0], C[1], RX - 17, RY - 17), entra: { x0: 205, x1: 245, y: C[1] - RY + 26 }, lleno: C[1] - RY + 34,
+      atras() {
+        ctx.save();
+        // sombra
+        const s = ctx.createRadialGradient(CX, 440, 10, CX, 440, 190); s.addColorStop(0, 'rgba(0,0,0,.4)'); s.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = s; ctx.fill(elipse(CX, 440, 190, 20));
+        // patas de atrás, oreja de atrás y colita
+        pata(128, 352, true); pata(318, 352, true);
+        oreja(318, 176, .25, true);
+        ctx.strokeStyle = '#f06aa6'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(C[0] - RX + 6, 250); ctx.bezierCurveTo(46, 236, 40, 206, 60, 206); ctx.bezierCurveTo(80, 206, 78, 232, 60, 230); ctx.bezierCurveTo(46, 228, 50, 212, 30, 214); ctx.stroke();
+        // vidrio (atrás)
+        const g = ctx.createRadialGradient(C[0] - 40, C[1] - 50, 20, C[0], C[1], RX);
+        g.addColorStop(0, rosa(.10)); g.addColorStop(1, rosa(.26));
+        ctx.fillStyle = g; ctx.fill(elipse(C[0], C[1], RX, RY));
+        // ranura (por dentro)
+        ctx.fillStyle = 'rgba(80, 20, 50, .8)'; ctx.beginPath(); ctx.roundRect(196, C[1] - RY - 3, 58, 10, 5); ctx.fill();
+        ctx.restore();
+      },
+      frente() {
+        ctx.save();
+        // tinte del vidrio + borde grueso
+        const cuerpo = elipse(C[0], C[1], RX, RY);
+        ctx.save(); ctx.clip(cuerpo);
+        const t = ctx.createRadialGradient(C[0] - 30, C[1] - 40, RX * .35, C[0], C[1], RX * 1.02);
+        t.addColorStop(0, rosa(0)); t.addColorStop(.75, rosa(.14)); t.addColorStop(1, rosa(.55));
+        ctx.fillStyle = t; ctx.fill(cuerpo);
+        ctx.lineWidth = 26; ctx.strokeStyle = rosa(.35); ctx.stroke(cuerpo);
+        ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.stroke(cuerpo);
+        brillo(C[0] - 70, C[1] - 70, 60, 22, .55, -.35);
+        brillo(C[0] + 95, C[1] + 55, 26, 10, .25, -.6);
+        ctx.restore();
+        ctx.save(); ctx.shadowColor = rosa(.7); ctx.shadowBlur = 18; ctx.lineWidth = 4; ctx.strokeStyle = '#ff9ccb'; ctx.stroke(cuerpo); ctx.restore();
+        ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.stroke(cuerpo);
+        // patas de adelante
+        pata(170, 360, false); pata(300, 360, false);
+        // ranura (borde de arriba)
+        ctx.fillStyle = '#b8467a'; ctx.beginPath(); ctx.roundRect(192, C[1] - RY - 7, 66, 14, 7); ctx.fill();
+        ctx.fillStyle = '#3d0f26'; ctx.beginPath(); ctx.roundRect(198, C[1] - RY - 3, 54, 6, 3); ctx.fill();
+        // oreja de adelante
+        oreja(352, 182, .45, false);
+        // hocico
+        ctx.fillStyle = piel(390, 250, 440, 320); ctx.fill(elipse(C[0] + RX - 8, C[1] + 8, 30, 38));
+        ctx.fillStyle = '#ff9cc7'; ctx.fill(elipse(C[0] + RX - 4, C[1] + 8, 22, 30));
+        ctx.fillStyle = '#b8386f'; ctx.fill(elipse(C[0] + RX - 6, C[1] - 4, 5, 8)); ctx.fill(elipse(C[0] + RX - 6, C[1] + 20, 5, 8));
+        brillo(C[0] + RX - 14, C[1] - 14, 7, 10, .6);
+        // ojo y cachete
+        ctx.fillStyle = '#2b0f1d'; ctx.fill(elipse(C[0] + 108, C[1] - 44, 9, 12));
+        ctx.fillStyle = '#fff'; ctx.fill(elipse(C[0] + 111, C[1] - 48, 3, 4));
+        brillo(C[0] + 100, C[1] + 6, 22, 12, .0);
+        ctx.fillStyle = 'rgba(255, 80, 140, .35)'; ctx.fill(elipse(C[0] + 102, C[1] - 6, 18, 10));
+        ctx.restore();
+      }
+    };
+  }
+
+  // ---------- 3: COFRE del tesoro ----------
+  function hacerCofre() {
+    const L = 100, R = 400, FT = 318, FB = 452;
+    const madera = (y0, y1) => { const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#9a5a2a'); g.addColorStop(1, '#5e3014'); return g; };
+    const oro = (x0, y0, x1, y1) => { const g = ctx.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, '#fff0a6'); g.addColorStop(.35, '#ffc93a'); g.addColorStop(.7, '#d18a0c'); g.addColorStop(1, '#ffdf6b'); return g; };
+    const remache = (x, y) => { ctx.fillStyle = '#fff3b8'; ctx.fill(elipse(x, y, 3.2, 3.2)); ctx.fillStyle = '#9c6400'; ctx.fill(elipse(x + .8, y + .8, 1.6, 1.6)); };
+    return {
+      dentro: [[L + 22, 118], [L + 22, 350], [R - 22, 350], [R - 22, 118]], entra: { x0: 170, x1: 330, y: 126 }, lleno: 132,
+      atras() {
+        ctx.save();
+        const s = ctx.createRadialGradient(CX, FB + 4, 10, CX, FB + 4, 200); s.addColorStop(0, 'rgba(0,0,0,.45)'); s.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = s; ctx.fill(elipse(CX, FB + 4, 200, 20));
+        // brillo dorado que sale del cofre
+        const l = ctx.createRadialGradient(CX, 300, 10, CX, 300, 230); l.addColorStop(0, 'rgba(255, 210, 80, .45)'); l.addColorStop(1, 'rgba(255, 180, 40, 0)');
+        ctx.fillStyle = l; ctx.fillRect(0, 60, W, 330);
+        // tapa abierta (se ve por dentro)
+        const tapa = new Path2D();
+        tapa.moveTo(L + 6, 262); tapa.lineTo(L - 12, 150); tapa.quadraticCurveTo(CX, 70, R + 12, 150); tapa.lineTo(R - 6, 262); tapa.closePath();
+        ctx.fillStyle = madera(80, 262); ctx.fill(tapa);
+        const dentroTapa = new Path2D();
+        dentroTapa.moveTo(L + 22, 258); dentroTapa.lineTo(L + 6, 160); dentroTapa.quadraticCurveTo(CX, 94, R - 6, 160); dentroTapa.lineTo(R - 22, 258); dentroTapa.closePath();
+        const vel = ctx.createLinearGradient(0, 100, 0, 258); vel.addColorStop(0, '#7a1020'); vel.addColorStop(1, '#3a0610');
+        ctx.fillStyle = vel; ctx.fill(dentroTapa);
+        ctx.lineWidth = 7; ctx.strokeStyle = oro(L, 0, R, 0); ctx.stroke(tapa);
+        ctx.lineWidth = 12; ctx.strokeStyle = oro(0, 90, 0, 262);
+        ctx.beginPath(); ctx.moveTo(L + 58, 262); ctx.lineTo(L + 44, 124); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(R - 58, 262); ctx.lineTo(R - 44, 124); ctx.stroke();
+        // interior del cofre
+        ctx.fillStyle = '#2a1206'; ctx.beginPath(); ctx.roundRect(L + 8, 262, R - L - 16, FT - 250, 4); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(L + 8, 262, R - L - 16, 14);
+        ctx.restore();
+      },
+      frente() {
+        ctx.save();
+        // frente de madera con tablas
+        ctx.fillStyle = madera(FT, FB); ctx.beginPath(); ctx.roundRect(L, FT, R - L, FB - FT, 8); ctx.fill();
+        ctx.strokeStyle = 'rgba(40, 18, 5, .55)'; ctx.lineWidth = 2;
+        for (const y of [FT + 44, FT + 88]) { ctx.beginPath(); ctx.moveTo(L + 4, y); ctx.lineTo(R - 4, y); ctx.stroke(); }
+        ctx.strokeStyle = 'rgba(255, 210, 160, .12)';
+        for (const y of [FT + 46, FT + 90]) { ctx.beginPath(); ctx.moveTo(L + 4, y); ctx.lineTo(R - 4, y); ctx.stroke(); }
+        // bandas doradas
+        ctx.fillStyle = oro(L, FT - 8, L, FT + 12); ctx.beginPath(); ctx.roundRect(L - 6, FT - 8, R - L + 12, 18, 6); ctx.fill();
+        ctx.fillStyle = oro(L, FB - 16, L, FB); ctx.beginPath(); ctx.roundRect(L - 4, FB - 16, R - L + 8, 16, 6); ctx.fill();
+        for (const x of [L + 50, R - 68]) {
+          ctx.fillStyle = oro(x, 0, x + 18, 0); ctx.fillRect(x, FT + 8, 18, FB - FT - 24);
+          for (let y = FT + 20; y < FB - 20; y += 26) remache(x + 9, y);
+        }
+        for (let x = L + 12; x < R - 8; x += 28) { remache(x, FT + 1); remache(x, FB - 8); }
+        // candado
+        ctx.fillStyle = oro(CX - 26, FT, CX + 26, FT + 70); ctx.beginPath(); ctx.roundRect(CX - 26, FT + 4, 52, 62, 10); ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = '#8a5600'; ctx.stroke();
+        ctx.fillStyle = '#3a2200'; ctx.fill(elipse(CX, FT + 30, 7, 7)); ctx.beginPath(); ctx.moveTo(CX - 4, FT + 32); ctx.lineTo(CX + 4, FT + 32); ctx.lineTo(CX + 6, FT + 50); ctx.lineTo(CX - 6, FT + 50); ctx.closePath(); ctx.fill();
+        brillo(CX - 12, FT + 16, 8, 14, .7);
+        // bordes de arriba del interior (se ven por delante de las monedas de los lados)
+        ctx.fillStyle = madera(262, FT); ctx.fillRect(L, 262, 12, FT - 262); ctx.fillRect(R - 12, 262, 12, FT - 262);
+        ctx.fillStyle = oro(L, 0, L + 12, 0); ctx.fillRect(L - 4, 258, 16, FT - 258); ctx.fillRect(R - 12, 258, 16, FT - 258);
+        ctx.restore();
+      }
+    };
+  }
+
+  // ---------- 4: ESFERA de vidrio (máquina de monedas) ----------
+  function hacerEsfera() {
+    const C = [250, 232], RR = 158;
+    const rojo = (x0, y0, x1, y1) => { const g = ctx.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, '#ff6b6b'); g.addColorStop(.5, '#e2202e'); g.addColorStop(1, '#8e0d18'); return g; };
+    const metal = (x0, x1) => { const g = ctx.createLinearGradient(x0, 0, x1, 0); g.addColorStop(0, '#8d96a3'); g.addColorStop(.3, '#f4f7fb'); g.addColorStop(.6, '#b9c2cd'); g.addColorStop(1, '#6d7684'); return g; };
+    return {
+      dentro: puntosElipse(C[0], C[1], RR - 14, RR - 14), entra: { x0: 225, x1: 275, y: C[1] - RR + 30 }, lleno: C[1] - RR + 40,
+      atras() {
+        ctx.save();
+        const s = ctx.createRadialGradient(CX, 470, 10, CX, 470, 170); s.addColorStop(0, 'rgba(0,0,0,.45)'); s.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = s; ctx.fill(elipse(CX, 470, 170, 16));
+        // base roja
+        ctx.fillStyle = rojo(150, 380, 350, 470);
+        ctx.beginPath(); ctx.moveTo(165, 384); ctx.lineTo(335, 384); ctx.lineTo(372, 462); ctx.quadraticCurveTo(CX, 480, 128, 462); ctx.closePath(); ctx.fill();
+        brillo(190, 420, 14, 34, .35, .4);
+        // vidrio atrás
+        const g = ctx.createRadialGradient(C[0] - 50, C[1] - 60, 20, C[0], C[1], RR);
+        g.addColorStop(0, 'rgba(210,235,255,.04)'); g.addColorStop(1, 'rgba(170,210,255,.16)');
+        ctx.fillStyle = g; ctx.fill(elipse(C[0], C[1], RR, RR));
+        ctx.restore();
+      },
+      frente() {
+        ctx.save();
+        const esfera = elipse(C[0], C[1], RR, RR);
+        ctx.save(); ctx.clip(esfera);
+        const t = ctx.createRadialGradient(C[0] - 30, C[1] - 30, RR * .5, C[0], C[1], RR);
+        t.addColorStop(0, 'rgba(200,230,255,0)'); t.addColorStop(1, 'rgba(200,230,255,.35)');
+        ctx.fillStyle = t; ctx.fill(esfera);
+        ctx.lineWidth = 18; ctx.strokeStyle = 'rgba(220,240,255,.25)'; ctx.stroke(esfera);
+        // reflejo grande en forma de media luna
+        ctx.save(); ctx.globalAlpha = .55; ctx.strokeStyle = '#fff'; ctx.lineWidth = 14; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(C[0], C[1], RR - 30, Math.PI * 1.08, Math.PI * 1.42); ctx.stroke();
+        ctx.globalAlpha = .35; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(C[0], C[1], RR - 30, Math.PI * 1.48, Math.PI * 1.56); ctx.stroke(); ctx.restore();
+        brillo(C[0] + 92, C[1] + 88, 26, 12, .35, -.8);
+        ctx.restore();
+        ctx.save(); ctx.shadowColor = 'rgba(190,225,255,.6)'; ctx.shadowBlur = 16; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(235,246,255,.9)'; ctx.stroke(esfera); ctx.restore();
+        // cuello metálico
+        ctx.fillStyle = metal(150, 350); ctx.beginPath(); ctx.roundRect(150, 372, 200, 18, 9); ctx.fill();
+        // placa de la moneda
+        ctx.fillStyle = metal(214, 286); ctx.fill(elipse(CX, 426, 30, 30));
+        ctx.fillStyle = '#2b2f36'; ctx.beginPath(); ctx.roundRect(CX - 4, 408, 8, 22, 4); ctx.fill();
+        ctx.fillStyle = metal(CX - 22, CX + 22); ctx.beginPath(); ctx.roundRect(CX - 22, 436, 44, 9, 4); ctx.fill();
+        // tapa roja con perilla
+        ctx.fillStyle = rojo(170, 60, 330, 100);
+        ctx.beginPath(); ctx.ellipse(CX, C[1] - RR + 10, 74, 30, 0, Math.PI, 0); ctx.lineTo(CX + 74, C[1] - RR + 18); ctx.ellipse(CX, C[1] - RR + 18, 74, 12, 0, 0, Math.PI); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = metal(CX - 14, CX + 14); ctx.fill(elipse(CX, C[1] - RR - 22, 14, 10));
+        brillo(CX - 30, C[1] - RR - 2, 22, 8, .5, -.2);
+        ctx.restore();
+      }
+    };
+  }
+
+  const ESTILOS = {
+    1: () => hacerFrasco(['#c6ff3d', '#35f28a', '#2ee6ff', '#5b8cff', '#a45bff', '#e36bff', '#ff8ad1', '#ffb347'], 'rgba(170, 110, 255, .55)'),
+    2: hacerCerdito,
+    3: hacerCofre,
+    4: hacerEsfera,
+    5: () => hacerFrasco(['#f4f8ff', '#cfd8e6', '#9aa6b8', '#e8eef8', '#b8c3d4', '#f4f8ff', '#aab4c4', '#dde5f0'], 'rgba(220,235,255,.35)')
+  };
+  const ALC = (ESTILOS[ESTILO] || ESTILOS[1])();
+
+  // ---------- Física de las monedas ----------
+  const imgs = {};
+  function imagen(url) {
+    if (!url) return null;
+    if (!imgs[url]) { const im = new Image(); im.referrerPolicy = 'no-referrer'; im.src = url; imgs[url] = im; }
+    const im = imgs[url];
+    return im.complete && im.naturalWidth ? im : null;
+  }
+  const radio = (coins) => Math.max(11, Math.min(32, 10 + Math.log10(Math.max(1, coins)) * 5.5));
+
+  let monedas = [];
+  const MAX = Number(q.get('max')) || 200;
+
+  function soltar(img, coins) {
+    const r = radio(coins);
+    const e = ALC.entra;
+    const x = e.x0 + Math.random() * Math.max(0, e.x1 - e.x0);
+    const y = -r - Math.random() * 40;
+    monedas.push({ x, y, px: x, py: y - 3, r, img, coins, rot: Math.random() * 6.28, vr: (Math.random() - .5) * .2, cae: true, spin: Math.random() * 6 });
+    if (monedas.length > MAX) monedas.splice(0, monedas.length - MAX);
+    guardarLuego();
+  }
+
+  const POLY = ALC.dentro;
+  function dentroPoly(x, y) {
+    let s = false;
+    for (let i = 0, j = POLY.length - 1; i < POLY.length; j = i++) {
+      const [xi, yi] = POLY[i], [xj, yj] = POLY[j];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) s = !s;
+    }
+    return s;
+  }
+  function contener(m) {
+    let best = 1e9, bx = 0, by = 0;
+    for (let i = 0, j = POLY.length - 1; i < POLY.length; j = i++) {
+      const [ax, ay] = POLY[j], [cx, cy] = POLY[i];
+      const dx = cx - ax, dy = cy - ay, l2 = dx * dx + dy * dy || 1;
+      let t = ((m.x - ax) * dx + (m.y - ay) * dy) / l2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const px = ax + dx * t, py = ay + dy * t, d = (m.x - px) ** 2 + (m.y - py) ** 2;
+      if (d < best) { best = d; bx = px; by = py; }
+    }
+    const d = Math.sqrt(best), ins = dentroPoly(m.x, m.y);
+    if (ins && d >= m.r) return;
+    let nx, ny;
+    if (d < 1e-4) { nx = CX - m.x; ny = 300 - m.y; const n = Math.hypot(nx, ny) || 1; nx /= n; ny /= n; }
+    else if (ins) { nx = (m.x - bx) / d; ny = (m.y - by) / d; }
+    else { nx = (bx - m.x) / d; ny = (by - m.y) / d; }
+    m.x = bx + nx * m.r; m.y = by + ny * m.r;
+    m.px += (m.x - m.px) * 0.15; m.py += (m.y - m.py) * 0.05;   // un poco de roce
+  }
+
+  function paso() {
+    const G = 0.42;
+    for (const m of monedas) {
+      if (m.cae) {
+        const vy = m.y - m.py + G; m.py = m.y; m.y += vy; m.px = m.x; m.spin += .25;
+        if (m.y >= ALC.entra.y) { m.cae = false; m.py = m.y - Math.min(vy, 6); }
+        continue;
+      }
+      const vx = (m.x - m.px) * 0.99, vy = (m.y - m.py) * 0.99;
+      m.px = m.x; m.py = m.y;
+      m.x += vx; m.y += vy + G;
+      m.rot += m.vr; m.vr *= 0.985;
+    }
+    for (let it = 0; it < 4; it++) {
+      for (let i = 0; i < monedas.length; i++) {
+        const a = monedas[i]; if (a.cae) continue;
+        for (let j = i + 1; j < monedas.length; j++) {
+          const b = monedas[j]; if (b.cae) continue;
+          const dx = b.x - a.x, dy = b.y - a.y, min = a.r + b.r;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < min * min && d2 > 0.0001) {
+            const d = Math.sqrt(d2), o = (min - d) / 2, nx = dx / d, ny = dy / d;
+            a.x -= nx * o; a.y -= ny * o; b.x += nx * o; b.y += ny * o;
+            a.vr += nx * 0.01; b.vr -= nx * 0.01;
+          }
+        }
+      }
+      for (const m of monedas) if (!m.cae) contener(m);
+    }
+  }
+
+  function dibujarMoneda(m) {
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    if (m.cae) ctx.scale(Math.max(.25, Math.abs(Math.cos(m.spin))), 1);   // gira mientras cae
+    ctx.beginPath(); ctx.arc(0, 2, m.r, 0, Math.PI * 2); ctx.fillStyle = '#9a5b00'; ctx.fill();
+    const g = ctx.createRadialGradient(-m.r * .35, -m.r * .4, m.r * .1, 0, 0, m.r);
+    g.addColorStop(0, '#fff4b8'); g.addColorStop(.45, '#ffcd35'); g.addColorStop(1, '#e08a00');
+    ctx.beginPath(); ctx.arc(0, 0, m.r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+    ctx.lineWidth = Math.max(1.5, m.r * .09); ctx.strokeStyle = '#b86a00'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, m.r * .78, 0, Math.PI * 2); ctx.lineWidth = Math.max(1, m.r * .06); ctx.strokeStyle = 'rgba(150, 80, 0, .55)'; ctx.stroke();
+    const im = imagen(m.img);
+    if (im) {
+      ctx.rotate(m.rot * .15);
+      const s = m.r * 1.3;
+      ctx.drawImage(im, -s / 2, -s / 2, s, s);
+    } else {
+      ctx.fillStyle = 'rgba(150, 80, 0, .75)'; ctx.font = `900 ${Math.round(m.r * 1.05)}px Arial Black, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 0, 1);
+    }
+    ctx.restore();
+  }
+
+  let cuenta = 0;
+  function cuadro() {
+    paso();
+    if (++cuenta % 20 === 0) {
+      const arriba = monedas.filter(m => !m.cae && m.y < ALC.lleno && Math.abs(m.y - m.py) < 0.6).length;
+      if (arriba > 0) monedas.splice(0, Math.min(arriba * 2, 12));
+    }
+    giro += 0.004;
+    ctx.clearRect(0, 0, W, H);
+    ALC.atras();
+    for (const m of monedas) dibujarMoneda(m);
+    ALC.frente();
+    requestAnimationFrame(cuadro);
+  }
+
+  // ---------- Top donador y total ----------
+  let donadores = {};   // id -> { name, avatar, coins }
+  let total = 0;
+  function pintarBarras(pop) {
+    const top = Object.values(donadores).sort((a, b) => b.coins - a.coins)[0];
+    document.getElementById('topName').textContent = top ? top.name : 'Top donador';
+    document.getElementById('topVal').textContent = num(top ? top.coins : 0);
+    const av = document.getElementById('topAv');
+    av.textContent = '👤';
+    if (top && top.avatar) {
+      const im = document.createElement('img');
+      im.referrerPolicy = 'no-referrer'; im.alt = ''; im.src = top.avatar;
+      im.onerror = () => { av.textContent = '👤'; };
+      av.textContent = ''; av.appendChild(im);
+    }
+    document.getElementById('totVal').textContent = num(total);
+    if (pop) for (const id of ['topPill', 'totPill']) { const e = document.getElementById(id); e.classList.remove('pop'); void e.offsetWidth; e.classList.add('pop'); }
+  }
+
+  // Se guarda para que no se vacíe si recargas la fuente
+  let guardT = null;
+  function guardarLuego() {
+    if (DEMO) return;
+    clearTimeout(guardT);
+    guardT = setTimeout(() => {
+      try { localStorage.setItem('pf-frasco', JSON.stringify({ m: monedas.map(m => [m.img, m.coins]), d: donadores, t: total })); } catch (e) { /* nada */ }
+    }, 1500);
+  }
+  if (!DEMO) try {
+    const prev = JSON.parse(localStorage.getItem('pf-frasco') || '{}');
+    if (prev && !Array.isArray(prev)) {
+      donadores = prev.d || {}; total = Number(prev.t) || 0;
+      (prev.m || []).slice(-MAX).forEach(([img, coins], i) => setTimeout(() => soltar(img, coins), i * 25));
+    }
+  } catch (e) { /* nada */ }
+  pintarBarras(false);
+  requestAnimationFrame(cuadro);
+
+  function regalo(g, u) {
+    if (!g) return;
+    const n = Math.max(1, Math.min(12, Number(g.count) || 1));
+    const valor = (Number(g.coins) || 1) * (Number(g.count) || 1);
+    total += valor;
+    if (u) {
+      const id = String(u.userId || u.uniqueId || u.nickname || '?');
+      const d = donadores[id] || (donadores[id] = { name: '', avatar: '', coins: 0 });
+      d.name = u.nickname || u.uniqueId || d.name || 'Usuario';
+      if (u.avatar) d.avatar = u.avatar;
+      d.coins += valor;
+    }
+    pintarBarras(true);
+    for (let i = 0; i < n; i++) setTimeout(() => soltar(g.image || '', Number(g.coins) || 1), i * 140);
+  }
+  function vaciar() { monedas = []; donadores = {}; total = 0; pintarBarras(false); guardarLuego(); }
+
+  if (DEMO) {
+    let lista = [];
+    pfConnect((m) => { if (m.type === 'gift-stats' && m.stats && m.stats.sampleImgs) lista = m.stats.sampleImgs; }, 'frasco');
+    setInterval(() => {
+      if (monedas.length > 60) monedas.splice(0, 1);
+      const g = lista[Math.floor(Math.random() * lista.length)] || { image: '', coins: 1 };
+      regalo({ ...g, count: 1 }, { userId: 'demo', nickname: 'Usuario' });
+    }, 900);
+  } else {
+    pfConnect((m) => {
+      if (m.type === 'chat-event' && m.event && m.event.type === 'gift') regalo(m.event.gift, m.event.user);
+      if (m.type === 'jar-reset') vaciar();
+    }, 'frasco');
+  }
+</script>
+</body>
+</html>
