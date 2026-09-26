@@ -10,83 +10,72 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
   body {
+    -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision;
     font-family: "Segoe UI", "Arial Black", system-ui, sans-serif; color: #fff;
     font-size: calc(min(100vw / 1080, 100vh / 1920) * 10 * var(--scale));
   }
-  .wrap { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 108em; height: 100%; }
+  /* Centrado SIN transform: así el texto queda nítido (translate -50% lo ponía en medio píxel = borroso) */
+  /* Centrado SIN transform (así el texto queda nítido) */
+  .wrap { position: absolute; left: 0; right: 0; top: 0; margin: 0 auto; width: 108em; height: 100%; }
+  /* Contorno negro para que se lea sobre la cámara */
+  .out-txt { color: #fff; font-weight: 900; text-shadow: -.06em -.06em 0 #000, .06em -.06em 0 #000, -.06em .06em 0 #000, .06em .06em 0 #000, 0 .08em .25em rgba(0,0,0,.7); }
 
-  /* ---------- reloj ---------- */
-  .timer {
-    position: absolute; top: 5em; left: 50%; transform: translateX(-50%);
-    display: flex; align-items: center; gap: 1.6em;
-    background: rgba(15, 12, 22, .85); border: .3em solid rgba(255,255,255,.14);
-    padding: 1.2em 3.2em; border-radius: 10em; box-shadow: 0 .8em 2.4em rgba(0,0,0,.45);
-    font-weight: 900; white-space: nowrap;
-  }
-  .timer .round { font-size: 3em; color: #ffb35c; }
-  .timer .time { font-size: 5.6em; font-variant-numeric: tabular-nums; line-height: 1; }
-  .timer.low .time { color: #ff5470; animation: blink 1s infinite; }
-  .timer .msg { font-size: 3.8em; }
+  /* ---------- reloj (arriba al centro, transparente) ---------- */
+  .timer { position: absolute; top: 37em; left: 0; right: 0; text-align: center; font-weight: 900; line-height: 1; }
+  .timer .time { font-size: 8em; color: rgba(255,255,255,.72); font-variant-numeric: tabular-nums; text-shadow: 0 .04em .12em rgba(0,0,0,.45); }
+  .timer.low .time { color: rgba(255,84,112,.9); animation: blink 1s infinite; }
+  .timer .msg { display: inline-block; font-size: 3.4em; padding: .35em .9em; border-radius: 3em; background: rgba(0,0,0,.35); }
   @keyframes blink { 50% { opacity: .45; } }
 
-  /* ---------- columnas de países ---------- */
-  .col { position: absolute; top: 20em; display: flex; flex-direction: column; gap: 1.2em; width: 33em; }
-  .col.left { left: 1.6em; }
-  .col.right { right: 1.6em; }
-  .card {
-    position: relative; height: 11.8em; display: flex; align-items: center; gap: 1.2em;
-    padding: 0 1.4em; border-radius: 1.8em;
-    background: linear-gradient(90deg, rgba(20,16,30,.9), rgba(20,16,30,.66));
-    border: .3em solid rgba(255,255,255,.12);
-    box-shadow: 0 .5em 1.6em rgba(0,0,0,.4);
-    transition: transform .25s, border-color .3s, box-shadow .3s;
-  }
-  .col.right .card { flex-direction: row-reverse; text-align: right; }
-  .card img, .card .code { width: 7.6em; height: 5.1em; border-radius: .8em; flex: none; box-shadow: 0 0 0 .25em rgba(255,255,255,.25); }
-  .card img { object-fit: cover; }
-  .card .code { display: none; place-items: center; background: #3a3346; font-weight: 900; font-size: 1em; }
-  .card .code span { font-size: 2.4em; }
-  .card .info { flex: 1; min-width: 0; }
-  .card .name { font-size: 2.7em; font-weight: 800; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 .1em .2em #000; }
-  .card .line { display: flex; align-items: baseline; gap: 1em; }
-  .col.right .card .line { flex-direction: row-reverse; }
-  .card .pts { font-size: 4.6em; font-weight: 900; line-height: 1.05; color: #ffd24a; text-shadow: 0 .06em .15em #000; font-variant-numeric: tabular-nums; }
-  .card .pts small { font-size: .45em; color: #e6dcb0; margin-left: .15em; }
-  .card .users { font-size: 2em; color: #cfc7de; white-space: nowrap; }
-  .card.leader { border-color: #ffd24a; box-shadow: 0 0 2.6em rgba(255, 210, 74, .6); }
-  .card.leader::before { content: '👑'; position: absolute; font-size: 4em; top: -.55em; }
-  .col.left .card.leader::before { right: .15em; }
-  .col.right .card.leader::before { left: .15em; }
-  .card.bump { transform: scale(1.07); border-color: #25f4ee; }
-  .card .rank { position: absolute; bottom: -.5em; font-size: 1.9em; font-weight: 900; background: #fe2c55; border-radius: .4em; padding: 0 .4em; }
-  .col.left .card .rank { left: -.3em; }
-  .col.right .card .rank { right: -.3em; }
+  /* ---------- columnas de banderas (orilla izquierda y derecha) ---------- */
+  .col { position: absolute; top: 49em; display: flex; flex-direction: column; gap: 1.4em; align-items: center; width: 12em; }
+  .col.left { left: 2.4em; }
+  .col.right { right: 2.4em; }
+  .fcard { position: relative; display: flex; flex-direction: column; align-items: center; gap: .5em; transition: transform .25s; }
+  .fcard .flag { position: relative; width: 11em; height: 7.3em; }
+  .fcard .flag img, .fcard .flag .code { width: 100%; height: 100%; border-radius: 1em; object-fit: cover; display: block;
+    box-shadow: 0 .5em 1.2em rgba(0,0,0,.55), 0 0 0 .3em rgba(255,255,255,.18); }
+  .fcard .flag .code { display: none; place-items: center; background: #3a3346; }
+  .fcard .flag .code span { font-size: 3em; font-weight: 900; }
+  .fcard .pts { font-size: 3.6em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .fcard .badge { position: absolute; top: -1em; left: -1em; width: 3.4em; height: 3.4em; border-radius: 50%;
+    display: grid; place-items: center; background: #1b1b22; border: .3em solid #ffd24a; box-shadow: 0 .3em .8em rgba(0,0,0,.5); }
+  .fcard .badge b { font-size: 1.9em; color: #ffd24a; font-weight: 900; }
+  .fcard .badge.r2 { border-color: #cfd8e3; } .fcard .badge.r2 b { color: #e6edf5; }
+  .fcard .badge.r3 { border-color: #e0a060; } .fcard .badge.r3 b { color: #f0b779; }
+  .fcard .crown { position: absolute; top: -4.6em; left: 0; right: 0; text-align: center; font-size: 1em; }
+  .fcard .crown span { font-size: 4.2em; filter: drop-shadow(0 .1em .15em rgba(0,0,0,.6)); }
+  .fcard.bump { transform: scale(1.15); }
 
-  /* ---------- feed (esquina inferior izquierda) ---------- */
-  .feed { position: absolute; left: 1.6em; bottom: 6em; display: flex; flex-direction: column-reverse; gap: 1em; max-width: 80em; }
-  .fi {
-    display: flex; align-items: center; gap: 1.2em;
-    background: rgba(15, 12, 22, .88); border-left: .6em solid #fe2c55;
-    padding: 1em 2em 1em 1.2em; border-radius: 1.2em;
-    box-shadow: 0 .5em 1.4em rgba(0,0,0,.4);
-    animation: fin .35s ease-out;
-  }
-  .fi span { font-size: 2.6em; font-weight: 700; }
-  .fi img.av { width: 5em; height: 5em; border-radius: 50%; object-fit: cover; }
-  .fi img.fl { width: 5.4em; height: 3.6em; object-fit: cover; border-radius: .5em; }
+  /* ---------- "+10" cuando un país suma ---------- */
+  .pop { position: absolute; left: 0; right: 0; bottom: 22em; display: flex; justify-content: center; align-items: center; gap: 1.6em;
+    pointer-events: none; animation: popup 1.6s ease-out forwards; }
+  .pop img { width: 10em; height: 6.6em; border-radius: .9em; object-fit: cover; box-shadow: 0 .5em 1.2em rgba(0,0,0,.5); }
+  .pop .n { font-size: 10em; line-height: 1; }
+  @keyframes popup { 0% { opacity: 0; transform: translateY(4em) scale(.6); } 15% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10em); } }
+
+  /* ---------- quién se unió (abajo a la derecha, pequeño) ---------- */
+  .feed { position: absolute; right: 2.4em; bottom: 24em; display: flex; flex-direction: column; align-items: flex-end; gap: 1em; max-width: 60em; }
+  .fi { display: flex; align-items: center; gap: 1.2em; background: rgba(10,10,14,.45); padding: .8em 1.6em .8em .8em; border-radius: 4em; animation: fin .35s ease-out; }
+  .fi .av { width: 5.4em; height: 5.4em; border-radius: 50%; object-fit: cover; flex: none; background: #3a3346; }
+  .fi .tx { display: flex; flex-direction: column; min-width: 0; }
+  .fi .who { font-size: 2.3em; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 18em; }
+  .fi .who small { font-weight: 600; opacity: .7; }
+  .fi .what { font-size: 2.5em; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 18em; }
+  .fi .fl { width: 4.8em; height: 3.2em; border-radius: .4em; object-fit: cover; flex: none; }
   .fi.out { animation: fout .45s ease-in forwards; }
-  @keyframes fin { from { opacity: 0; transform: translateX(-5em); } }
-  @keyframes fout { to { opacity: 0; transform: translateX(-5em); } }
+  @keyframes fin { from { opacity: 0; transform: translateX(5em); } }
+  @keyframes fout { to { opacity: 0; transform: translateX(5em); } }
 
   /* ---------- TOP 3 ---------- */
   .top3 {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(.8); opacity: 0;
+    position: absolute; inset: 0; margin: auto; height: max-content; transform: scale(.8); opacity: 0;
     width: 80em; padding: 4em 3em 4.5em; border-radius: 4em; text-align: center;
     background: radial-gradient(circle at 50% 0%, rgba(255,210,74,.35), rgba(18,14,28,.95) 60%);
     border: .4em solid rgba(255,210,74,.6); box-shadow: 0 1.5em 6em rgba(0,0,0,.6);
     transition: all .45s cubic-bezier(.2,1.4,.4,1); pointer-events: none;
   }
-  .top3.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .top3.show { opacity: 1; transform: none; }
   .top3 h1 { margin: 0; font-size: 7em; font-weight: 900; }
   .top3 .sub { font-size: 3em; color: #d8cfe6; margin-bottom: 1.2em; }
   .podium { display: flex; justify-content: center; align-items: flex-end; gap: 2em; }
@@ -110,6 +99,7 @@
     <div class="col left" id="left"></div>
     <div class="col right" id="right"></div>
     <div class="feed" id="feed"></div>
+    <div id="pops"></div>
     <div class="top3" id="top3"></div>
   </div>
 
@@ -123,7 +113,7 @@
 
   const flag = (c) => `https://flagcdn.com/w160/${String(c || '').toLowerCase()}.png`;
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const mmss = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   let state = null;
   let prevCoins = {};
@@ -142,47 +132,47 @@
     if (!state) return;
     if (state.running) {
       t.className = 'timer' + (remaining <= 30 && !state.paused ? ' low' : '');
-      t.innerHTML = `<span class="round">RONDA ${state.round}</span><span class="time">${state.paused ? '⏸ ' : '⏱ '}${mmss(remaining)}</span>`;
+      t.innerHTML = `<span class="time">${state.paused ? '⏸ ' : ''}${mmss(remaining)}</span>`;
     } else if (state.top3) {
       t.className = 'timer';
-      t.innerHTML = `<span class="msg">🏆 ¡Fin de la ronda ${state.round}!</span>`;
+      t.innerHTML = `<span class="msg out-txt">🏆 ¡Fin de la ronda!</span>`;
     } else {
       t.className = 'timer';
-      t.innerHTML = `<span class="msg">🌎 ¡Escribe tu país en el chat!</span>`;
+      t.innerHTML = `<span class="msg out-txt">🌎 ¡Escribe tu país en el chat!</span>`;
     }
   }
 
   function cardHtml(c, rank) {
+    const lider = state.leader === c.code && c.coins > 0;
     return `
-      <div class="card ${state.leader === c.code ? 'leader' : ''}" data-code="${esc(c.code)}">
-        <img src="${flag(c.code)}"><div class="code"><span>${esc(c.code.toUpperCase())}</span></div>
-        <div class="info">
-          <div class="name">${esc(c.name)}</div>
-          <div class="line">
-            <div class="pts">${c.points}<small>pts</small></div>
-            <div class="users">👥 ${c.users}</div>
-          </div>
+      <div class="fcard" data-code="${esc(c.code)}">
+        ${lider ? '<div class="crown"><span>👑</span></div>' : ''}
+        <div class="flag">
+          <img src="${flag(c.code)}" alt=""><div class="code"><span>${esc(c.code.toUpperCase())}</span></div>
+          ${rank <= 3 ? `<div class="badge r${rank}"><b>${rank}</b></div>` : ''}
         </div>
-        ${c.coins > 0 ? `<div class="rank">#${rank}</div>` : ''}
+        <div class="pts out-txt">${c.points}</div>
       </div>`;
   }
 
   function render() {
     if (!state) return;
+    // Ordenados por puntos: el que va ganando queda arriba a la izquierda
     const ranking = state.countries.slice().sort((a, b) => b.coins - a.coins || a.index - b.index);
-    const rankOf = {};
-    ranking.forEach((c, i) => rankOf[c.code] = i + 1);
-    const list = state.countries; // orden fijo
-    document.getElementById('left').innerHTML = list.slice(0, 8).map(c => cardHtml(c, rankOf[c.code])).join('');
-    document.getElementById('right').innerHTML = list.slice(8, 15).map(c => cardHtml(c, rankOf[c.code])).join('');
+    const half = Math.ceil(ranking.length / 2);
+    document.getElementById('left').innerHTML = ranking.slice(0, half).map((c, i) => cardHtml(c, i + 1)).join('');
+    document.getElementById('right').innerHTML = ranking.slice(half).map((c, i) => cardHtml(c, half + i + 1)).join('');
 
-    // animación cuando un país suma
-    for (const c of list) {
-      if (prevCoins[c.code] !== undefined && c.coins > prevCoins[c.code]) {
-        const el = document.querySelector(`.card[data-code="${CSS.escape(c.code)}"]`);
+    // animación cuando un país suma: la bandera salta y sale "+N" grande
+    for (const c of state.countries) {
+      const antes = prevCoins[c.code];
+      if (antes !== undefined && c.coins > antes.coins) {
+        const el = document.querySelector(`.fcard[data-code="${CSS.escape(c.code)}"]`);
         if (el) { el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 450); }
+        const mas = c.points - antes.points;
+        if (mas > 0) popPuntos(c.code, mas);
       }
-      prevCoins[c.code] = c.coins;
+      prevCoins[c.code] = { coins: c.coins, points: c.points };
     }
 
     // TOP 3
@@ -210,15 +200,32 @@
     renderTimer();
   }
 
-  // ---------- feed: máximo 3 mensajes, cada uno dura 5 segundos ----------
+  function popPuntos(code, n) {
+    const box = document.getElementById('pops');
+    const d = document.createElement('div');
+    d.className = 'pop';
+    d.innerHTML = `<img src="${flag(code)}" alt=""><span class="n out-txt">+${n}</span>`;
+    box.appendChild(d);
+    while (box.children.length > 3) box.firstElementChild.remove();
+    setTimeout(() => d.remove(), 1700);
+  }
+
+  // ---------- quién se unió: máximo 3, cada uno dura 5 segundos ----------
   function addFeed(m) {
     const feed = document.getElementById('feed');
     const div = document.createElement('div');
     div.className = 'fi';
+    // "Camila se unió a Colombia" -> nombre arriba, país abajo
+    const t = String(m.text || '');
+    const j = t.match(/^(.*) se unió a (.*)$/);
+    const g = t.match(/^(.*?) envió (.*)$/);
+    const who = j ? j[1] : g ? g[1] : '';
+    const what = j ? j[2] : g ? g[2].replace(/\s*→.*$/, '') : t;
+    const tag = j ? 'se unió' : g ? 'regaló' : '';
     div.innerHTML =
-      (m.avatar ? `<img class="av" src="${esc(m.avatar)}">` : '') +
-      (m.code ? `<img class="fl" src="${flag(m.code)}">` : '') +
-      `<span>${esc(m.text)}</span>`;
+      (m.avatar ? `<img class="av" src="${esc(m.avatar)}" referrerpolicy="no-referrer" alt="">` : '') +
+      `<div class="tx">${who ? `<div class="who out-txt">${esc(who)} <small>${tag}</small></div>` : ''}<div class="what out-txt">${esc(what)}</div></div>` +
+      (m.code ? `<img class="fl" src="${flag(m.code)}" alt="">` : '');
     feed.prepend(div);
     while (feed.children.length > 3) feed.lastElementChild.remove();
     setTimeout(() => {
