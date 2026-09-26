@@ -397,14 +397,15 @@
     const e = ALC.entra;
     const x = e.x0 + Math.random() * Math.max(0, e.x1 - e.x0);
     const y = -r - Math.random() * 40;
-    monedas.push({ x, y, px: x, py: y - 3, r, img, coins, rot: (Math.random() - .5) * .6, vr: (Math.random() - .5) * .04, cae: true, dentro: true });
+    monedas.push({ x, y, px: x, py: y - 3, r, img, coins, rot: (Math.random() - .5) * .6, cae: true, dentro: true });
     // afuera caben unos cuantos; los más viejos se van
     const fuera = monedas.filter(m => !m.dentro && !m.cae);
-    if (fuera.length > MAX_FUERA) monedas.splice(monedas.indexOf(fuera[0]), 1);
+    if (fuera.length > MAX_FUERA) { monedas.splice(monedas.indexOf(fuera[0]), 1); despertar(); }
     if (monedas.length > MAX) {
       // se quitan primero los más viejos de afuera
       const i = monedas.findIndex(m => !m.dentro && !m.cae);
       monedas.splice(i >= 0 ? i : 0, 1);
+      despertar();
     }
     guardarLuego();
   }
@@ -458,6 +459,8 @@
     return !monedas.some(o => o !== yo && !o.cae && o.dentro && Math.abs(o.y - o.py) < 0.6 && (o.x - yo.x) ** 2 + (o.y - yo.y) ** 2 < ((o.r + yo.r) * 1.1) ** 2);
   }
 
+  function despertar() { for (const m of monedas) { m.duerme = false; m.quieto = 0; } }
+
   function paso() {
     const G = 0.42;
     for (const m of monedas) {
@@ -469,45 +472,59 @@
           // ¿ya no cabe? se queda afuera y se riega
           if (!libre(m)) {
             m.dentro = false;
-            m.y = Math.min(m.y, FUERA.reduce((s, p) => Math.min(s, p[1]), 1e9) - m.r - 2);
+            m.y = Math.min(m.y, TOPE - m.r - 2);
             m.py = m.y;
             m.px = m.x - (Math.random() < .5 ? -1 : 1) * (0.3 + Math.random() * 0.6);
           }
         }
         continue;
       }
-      let vx = (m.x - m.px) * 0.99, vy = (m.y - m.py) * 0.99;
-      // límite de velocidad (nada sale volando)
+      if (m.duerme) continue;               // quieto: ya no se mueve ni gira
+      let vx = (m.x - m.px) * 0.985, vy = (m.y - m.py) * 0.985;
       const lim = m.dentro ? 9 : 5;
       vx = Math.max(-lim, Math.min(lim, vx)); vy = Math.max(-lim, Math.min(m.dentro ? 14 : 10, vy));
-      m.px = m.x; m.py = m.y;
+      m.px = m.x; m.py = m.y; m.x0 = m.x;
       m.x += vx; m.y += vy + G;
-      m.rot += m.vr; m.vr *= 0.97;
     }
-    for (let it = 0; it < 4; it++) {
+    for (let it = 0; it < 6; it++) {
       for (let i = 0; i < monedas.length; i++) {
         const a = monedas[i]; if (a.cae) continue;
         for (let j = i + 1; j < monedas.length; j++) {
-          const b = monedas[j]; if (b.cae || a.dentro !== b.dentro) continue;
+          const b = monedas[j]; if (b.cae || a.dentro !== b.dentro || (a.duerme && b.duerme)) continue;
           const dx = b.x - a.x, dy = b.y - a.y, min = a.r + b.r;
           const d2 = dx * dx + dy * dy;
           if (d2 < min * min && d2 > 0.0001) {
-            const d = Math.sqrt(d2), o = (min - d) / 2, nx = dx / d, ny = dy / d;
-            a.x -= nx * o; a.y -= ny * o; b.x += nx * o; b.y += ny * o;
-            a.vr += nx * 0.004; b.vr -= nx * 0.004;
+            const d = Math.sqrt(d2), o = min - d, nx = dx / d, ny = dy / d;
+            // si uno está dormido, se mueve solo el otro (como si fuera piso)
+            const wa = a.duerme ? 0 : b.duerme ? 1 : 0.5, wb = 1 - wa;
+            a.x -= nx * o * wa; a.y -= ny * o * wa; b.x += nx * o * wb; b.y += ny * o * wb;
+            // roce: quita un poco del deslizamiento para que no tiemblen
+            if (!a.duerme) { a.px += (a.x - a.px) * 0.08; }
+            if (!b.duerme) { b.px += (b.x - b.px) * 0.08; }
+            if (o > 3) { a.duerme = b.duerme = false; }
           }
         }
       }
       for (const m of monedas) {
-        if (m.cae) continue;
+        if (m.cae || m.duerme) continue;
         if (m.dentro) { contener(m); continue; }
         repeler(m);
-        // si quedó quieto en el aire (encima de la alcancía o de otros), se resbala hacia el piso
-        if (m.y < PISO - m.r - 24 && m.x > X0 - 10 && m.x < X1 + 10 && Math.abs(m.x - m.px) + Math.abs(m.y - m.py) < 0.9) { const d = (m.x < CX ? -1 : 1) * 0.15; m.x += d; m.px += d; }
+        if (m.y < PISO - m.r - 24 && m.x > X0 - 10 && m.x < X1 + 10 && Math.abs(m.x - m.px) + Math.abs(m.y - m.py) < 0.9) { const d = (m.x < CX ? -1 : 1) * 0.15; m.x += d; m.px += d; m.quieto = 0; }
         if (m.y > PISO - m.r) { m.y = PISO - m.r; m.px += (m.x - m.px) * 0.7; }
       }
     }
+    // los que casi no se mueven se "duermen" (se quedan quietos del todo)
+    for (const m of monedas) {
+      if (m.cae || m.duerme) continue;
+      // gira solo según lo que de verdad rodó de lado (como un objeto)
+      const rodo = m.x - (m.x0 ?? m.x);
+      m.rot += Math.max(-0.07, Math.min(0.07, rodo / m.r * 0.5));
+      const v = Math.abs(m.x - m.px) + Math.abs(m.y - m.py);
+      m.quieto = v < 0.6 ? (m.quieto || 0) + 1 : 0;
+      if (m.quieto > 45) { m.duerme = true; m.px = m.x; m.py = m.y; }
+    }
   }
+
 
   function dibujarMoneda(m) {
     ctx.save();
@@ -535,7 +552,7 @@
   function cuadro() {
     paso();
     // los que se salen de la pantalla por los lados, se van
-    if (monedas.some(m => !m.dentro && (m.x < -60 || m.x > W + 60))) monedas = monedas.filter(m => m.dentro || (m.x >= -60 && m.x <= W + 60));
+    if (monedas.some(m => !m.dentro && (m.x < -60 || m.x > W + 60))) { monedas = monedas.filter(m => m.dentro || (m.x >= -60 && m.x <= W + 60)); despertar(); }
     giro += 0.004;
     ctx.clearRect(0, 0, W, H);
     ALC.atras();
