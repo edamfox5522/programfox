@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProgramFox · Tu chat controla tu LIVE</title>
+<meta name="description" content="ProgramFox: programa interactivo para TikTok LIVE. Juegos, GTA V Modo Caos, Minecraft, voz del chat y overlays para OBS.">
+<link rel="icon" href="img/icon.png">
+<style>
+  /* ============================================================
+     CONFIGURACIÓN DE TU PÁGINA (cámbialo aquí)
+     Los links están abajo en el <script>, en "CONFIG".
+     ============================================================ */
+  :root {
+    --bg: #0a0a0e; --bg2: #111118; --panel: #15151c; --line: #24242f; --line2: #30303d;
+    --text: #f2f2f7; --muted: #9a9aab; --accent: #ff7a1a; --accent2: #ffb347; --ok: #22c55e;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; line-height: 1.5; }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+  .wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+
+  /* ---- Barra de arriba ---- */
+  header { position: sticky; top: 0; z-index: 20; background: rgba(10,10,14,.82); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .nav { display: flex; align-items: center; gap: 24px; height: 66px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; }
+  .brand img { width: 34px; height: 34px; border-radius: 9px; }
+  .brand span { color: var(--accent); }
+  .links { display: flex; gap: 22px; margin-left: auto; color: var(--muted); font-size: 15px; }
+  .links a:hover { color: var(--text); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 11px 20px; border-radius: 11px; font-weight: 700; font-size: 15px; border: 1px solid transparent; cursor: pointer; transition: transform .12s, background .15s; white-space: nowrap; }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-main { background: linear-gradient(135deg, var(--accent), #ff5a36); color: #150a02; box-shadow: 0 10px 30px rgba(255,122,26,.3); }
+  .btn-ghost { background: var(--panel); border-color: var(--line2); color: var(--text); }
+  .btn-discord { background: #5865f2; color: #fff; }
+  .btn-paypal { background: #ffc439; color: #111; }
+  .btn svg { width: 19px; height: 19px; }
+  .btn-big { padding: 15px 28px; font-size: 17px; border-radius: 13px; }
+  .menu-btn { display: none; }
+
+  /* ---- Portada ---- */
+  .hero { position: relative; padding: 80px 0 60px; overflow: hidden; }
+  .hero::before { content: ""; position: absolute; inset: -30% -10% auto; height: 700px; background: radial-gradient(closest-side, rgba(255,122,26,.18), transparent); pointer-events: none; }
+  .hero-grid { position: relative; display: grid; grid-template-columns: 1.05fr 1fr; gap: 50px; align-items: center; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 13px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line2); color: #d8d8e2; font-size: 13.5px; font-weight: 600; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ff3b5c; box-shadow: 0 0 10px #ff3b5c; }
+  h1 { font-size: clamp(38px, 5.6vw, 66px); line-height: 1.04; margin: 20px 0 18px; letter-spacing: -1.5px; font-weight: 900; }
+  h1 .hl { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { color: #c6c6d2; font-size: 19px; max-width: 540px; margin: 0 0 30px; }
+  .cta { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .checks { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 22px; color: var(--muted); font-size: 14px; }
+  .checks b { color: var(--ok); margin-right: 4px; }
+  .shot { position: relative; border-radius: 18px; overflow: hidden; border: 1px solid var(--line2); box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,122,26,.12); transform: perspective(1400px) rotateY(-7deg) rotateX(2deg); }
+  .float { position: absolute; padding: 9px 14px; border-radius: 12px; background: rgba(21,21,28,.92); border: 1px solid var(--line2); font-weight: 700; font-size: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.5); animation: flot 4s ease-in-out infinite; }
+  .f1 { left: -22px; top: 18%; } .f2 { right: -14px; top: 52%; animation-delay: -1.5s; } .f3 { left: 12%; bottom: -16px; animation-delay: -3s; color: #111; background: linear-gradient(90deg, var(--accent), var(--accent2)); border: none; }
+  @keyframes flot { 50% { transform: translateY(-9px); } }
+
+  /* ---- Secciones ---- */
+  section { padding: 80px 0; }
+  .sec-title { text-align: center; margin-bottom: 44px; }
+  .sec-title h2 { font-size: clamp(30px, 4vw, 44px); margin: 0 0 10px; letter-spacing: -.8px; }
+  .sec-title h2 span { color: var(--accent); }
+  .sec-title p { color: var(--muted); margin: 0 auto; max-width: 620px; font-size: 17px; }
+
+  .games { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .game { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; transition: border-color .15s, transform .15s; }
+  .game:hover { border-color: rgba(255,122,26,.5); transform: translateY(-3px); }
+  .game .ico { width: 50px; height: 50px; border-radius: 13px; display: grid; place-items: center; font-size: 26px; margin-bottom: 14px; background: rgba(255,122,26,.12); }
+  .game h3 { margin: 0 0 6px; font-size: 18px; }
+  .game p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+  .feature { display: grid; grid-template-columns: 1fr 1.15fr; gap: 50px; align-items: center; margin-bottom: 70px; }
+  .feature.rev { grid-template-columns: 1.15fr 1fr; }
+  .feature.rev .ftxt { order: 2; }
+  .ftxt h3 { font-size: 30px; margin: 0 0 12px; letter-spacing: -.5px; }
+  .ftxt p { color: #c6c6d2; font-size: 16.5px; margin: 0 0 14px; }
+  .ftxt ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .ftxt li { color: #d8d8e2; padding-left: 26px; position: relative; }
+  .ftxt li::before { content: "✓"; position: absolute; left: 0; color: var(--accent); font-weight: 900; }
+  .fimg { border-radius: 16px; overflow: hidden; border: 1px solid var(--line2); box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+
+  /* ---- Instalación ---- */
+  .install { background: linear-gradient(180deg, transparent, rgba(255,122,26,.04)); }
+  .note { max-width: 760px; margin: 0 auto 34px; padding: 16px 20px; border-left: 4px solid var(--accent); background: var(--panel); border-radius: 10px; color: #cfcfdb; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .step { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+  .step .n { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; background: var(--accent); color: #111; margin-bottom: 12px; }
+  .step h4 { margin: 0 0 6px; font-size: 17px; }
+  .step p { margin: 0; color: var(--muted); font-size: 14.5px; }
+  .smart { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+  .smart div { width: 300px; border-radius: 12px; overflow: hidden; background: #d8302f; color: #fff; font-size: 13px; box-shadow: 0 16px 40px rgba(0,0,0,.4); }
+  .smart b { display: block; font-size: 17px; font-weight: 500; padding: 14px 16px 6px; }
+  .smart span { display: block; padding: 0 16px 12px; opacity: .92; }
+  .smart i { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px; background: rgba(0,0,0,.18); font-style: normal; }
+  .smart em { font-style: normal; background: #fff; color: #111; padding: 4px 10px; border-radius: 3px; font-size: 12px; }
+  .smart em.hl { outline: 3px solid #ffd54a; }
+
+  /* ---- Precio ---- */
+  .price-card { max-width: 480px; margin: 0 auto; background: var(--panel); border: 1px solid rgba(255,122,26,.45); border-radius: 22px; padding: 34px; text-align: center; box-shadow: 0 30px 80px rgba(255,122,26,.08); }
+  .price { font-size: 58px; font-weight: 900; letter-spacing: -2px; margin: 6px 0 0; }
+  .price small { font-size: 18px; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+  .price-card ul { text-align: left; list-style: none; padding: 0; margin: 22px 0; display: flex; flex-direction: column; gap: 9px; }
+  .price-card li::before { content: "✓"; color: var(--ok); font-weight: 900; margin-right: 10px; }
+  .buy { display: flex; flex-direction: column; gap: 10px; }
+  .how { color: var(--muted); font-size: 13.5px; margin-top: 14px; }
+
+  /* ---- Preguntas ---- */
+  .faq { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; }
+  summary { cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none; display: flex; justify-content: space-between; gap: 10px; }
+  summary::after { content: "+"; color: var(--accent); font-size: 22px; line-height: 1; }
+  details[open] summary::after { content: "–"; }
+  details p { color: #c6c6d2; margin: 12px 0 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 34px 0; color: var(--muted); font-size: 14px; }
+  .foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+  /* ---- Celular ---- */
+  @media (max-width: 900px) {
+    .links { display: none; }
+    .hero { padding: 44px 0 30px; }
+    .hero-grid, .feature, .feature.rev { grid-template-columns: 1fr; gap: 30px; }
+    .feature.rev .ftxt { order: 0; }
+    .shot { transform: none; }
+    .float { display: none; }
+    .games, .steps { grid-template-columns: 1fr 1fr; }
+    .nav .btn-main { padding: 9px 14px; font-size: 14px; }
+  }
+  @media (max-width: 560px) {
+    .games, .steps { grid-template-columns: 1fr; }
+    section { padding: 56px 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#"><img src="img/icon.png" alt="">Program<span>Fox</span></a>
+    <nav class="links">
+      <a href="#juegos">Juegos</a>
+      <a href="#funciones">Funciones</a>
+      <a href="#instalar">Instalación</a>
+      <a href="#precio">Precio</a>
+      <a href="#faq">Preguntas</a>
+    </nav>
+    <a class="btn btn-main js-download" href="#instalar">Descargar</a>
+  </div>
+</header>
+
+<!-- ======================= PORTADA ======================= -->
+<div class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="pill"><span class="dot"></span> Hecho para TikTok LIVE</span>
+      <h1>Tu chat <span class="hl">controla</span><br>tu LIVE</h1>
+      <p class="lead">Regalos, likes y comentarios que activan juegos, efectos de GTA V, comandos de Minecraft, alertas y voz. Todo desde un solo programa, en español.</p>
+      <div class="cta">
+        <a class="btn btn-main btn-big js-download" href="#instalar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Descargar para Windows
+        </a>
+        <a class="btn btn-ghost btn-big" href="#funciones">Ver cómo funciona ↓</a>
+      </div>
+      <div class="checks"><span><b>✓</b>Windows 10 y 11</span><span><b>✓</b>OBS y TikTok LIVE Studio</span><span><b>✓</b>Soporte en Discord</span></div>
+    </div>
+    <div style="position:relative">
+      <div class="shot"><img src="img/app-juegos.png" alt="ProgramFox - catálogo de juegos"></div>
+      <div class="float f1">🌹 Rosa ×25</div>
+      <div class="float f2">❤️ +1.2k likes</div>
+      <div class="float f3">⚡ ¡Efecto activado!</div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= JUEGOS ======================= -->
+<section id="juegos">
+  <div class="wrap">
+    <div class="sec-title">
+      <h2>Juegos que tu <span>audiencia</span> mueve</h2>
+      <p>Cada regalo, like o comentario hace algo en tu stream. Tus espectadores dejan de mirar y empiezan a jugar.</p>
+    </div>
+    <div class="games">
+      <div class="game"><div class="ico">🚗</div><h3>GTA V · Modo Caos</h3><p>Más de 360 efectos: tanques, meteoritos, gravedad loca, fin del mundo… instalado con un clic.</p></div>
+      <div class="game"><div class="ico">⛏️</div><h3>Minecraft</h3><p>Los regalos invocan mobs, TNT, rayos y lo que quieras. Compatible con tus comandos de TikFinity.</p></div>
+      <div class="game"><div class="ico">🌎</div><h3>Juego de Banderas</h3><p>El chat se divide por países y los regalos suman puntos. Rondas con reloj y TOP 3 en pantalla.</p></div>
+      <div class="game"><div class="ico">🎮</div><h3>Cualquier juego de PC</h3><p>Convierte cada regalo en una tecla y deja que tu LIVE controle el juego que quieras.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= FUNCIONES ======================= -->
+<section id="funciones" style="padding-top:20px">
+  <div class="wrap">
+    <div class="feature">
+      <div class="ftxt">
+        <h3>Acciones y eventos sin complicarte</h3>
+        <p>Eliges el regalo, eliges lo que pasa. Busca entre cientos de efectos en español y ponlos en segundos.</p>
+        <ul>
+          <li>Todos los regalos de TikTok con su imagen</li>
+          <li>Efectos al azar, combos y tiempos de espera</li>
+          <li>Perfiles distintos para cada juego</li>
+        </ul>
+      </div>
+      <div class="fimg"><img src="img/app-gta.png" alt="Elegir efectos de GTA V en una acción"></div>
+    </div>
+
+    <div class="feature rev">
+      <div class="ftxt">
+        <h3>Alertas y videos en 10 pantallas</h3>
+        <p>Pon una alerta en el centro y los videos en una esquina. Cada pantalla es una fuente de OBS y tiene su propia fila.</p>
+        <ul>
+          <li>Imágenes, GIF y videos con sonido</li>
+          <li>Funciona en OBS y TikTok LIVE Studio</li>
+          <li>Fondo transparente, listo para usar</li>
+        </ul>
+      </div>
+      <div class="fimg"><img src="img/app-pantallas.png" alt="Pantallas de overlays para OBS"></div>
+    </div>
+
+    <div class="feature">
+      <div class="ftxt">
+        <h3>Tu chat con voz</h3>
+        <p>Un bot lee los comentarios de tu LIVE con voces naturales en español, con filtros para que no se lea cualquier cosa.</p>
+        <ul>
+          <li>Voces de Colombia, México, España y más</li>
+          <li>Solo seguidores, suscriptores o con comando</li>
+          <li>Filtro de palabras y enlaces</li>
+        </ul>
+      </div>
+      <div class="fimg"><img src="img/app-voz.png" alt="Voz del chat"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= INSTALACIÓN ======================= -->
+<section id="instalar" class="install">
+  <div class="wrap">
+    <div class="sec-title">
+      <h2>Fácil <span>instalación</span></h2>
+      <p>Descargas, abres y listo. Se actualiza solo cada vez que sacamos algo nuevo.</p>
+    </div>
+    <div class="note">
+      El programa aún no tiene firma digital (los certificados son muy costosos), por eso Windows puede mostrar un aviso la primera vez.
+      Es normal: toca <b>"Más información"</b> y luego <b>"Ejecutar de todas formas"</b>.
+    </div>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h4>Descarga</h4><p>Toca el botón de abajo y guarda <b>ProgramFox-Setup.exe</b>.</p></div>
+      <div class="step"><div class="n">2</div><h4>Ábrelo</h4><p>Si sale el aviso rojo: "Más información" → "Ejecutar de todas formas".</p></div>
+      <div class="step"><div class="n">3</div><h4>Entra</h4><p>Escribe el usuario y la contraseña que te damos al comprar.</p></div>
+      <div class="step"><div class="n">4</div><h4>Conecta</h4><p>Pon tu usuario de TikTok, conecta tu LIVE y crea tus acciones.</p></div>
+    </div>
+    <div class="smart">
+      <div><b>Windows protegió su PC</b><span>SmartScreen de Microsoft Defender impidió el inicio de una aplicación desconocida. <u>Más información</u></span><i><em>No ejecutar</em></i></div>
+      <div><b>Windows protegió su PC</b><span>Aplicación: ProgramFox-Setup.exe<br>Editor: Editor desconocido</span><i><em class="hl">Ejecutar de todas formas</em><em>No ejecutar</em></i></div>
+    </div>
+    <div class="cta" style="justify-content:center;margin-top:34px">
+      <a class="btn btn-main btn-big js-download" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Descargar ProgramFox
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= PRECIO ======================= -->
+<section id="precio">
+  <div class="wrap">
+    <div class="sec-title"><h2>Un solo <span>plan</span>, todo incluido</h2><p>Sin letras pequeñas. Cancelas cuando quieras.</p></div>
+    <div class="price-card">
+      <div class="pill">⭐ ProgramFox Pro</div>
+      <div class="price"><span class="js-price">$10</span> <small>USD / mes</small></div>
+      <ul>
+        <li>Todos los juegos (GTA V, Minecraft, Banderas…)</li>
+        <li>Acciones, eventos y perfiles ilimitados</li>
+        <li>Voz del chat y 10 pantallas de overlays</li>
+        <li>Actualizaciones automáticas</li>
+        <li>Soporte en Discord</li>
+      </ul>
+      <div class="buy">
+        <a class="btn btn-paypal btn-big js-paypal" href="#" target="_blank" rel="noopener">Pagar con PayPal</a>
+        <a class="btn btn-discord btn-big js-discord" href="#" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.3 5.3A17 17 0 0 0 15 4l-.5 1a15.6 15.6 0 0 0-5 0L9 4a17 17 0 0 0-4.3 1.3C2 9.4 1.3 13.4 1.7 17.3A17 17 0 0 0 6.9 20l1.1-1.7a11 11 0 0 1-1.7-.8l.4-.3a12.3 12.3 0 0 0 10.6 0l.4.3a11 11 0 0 1-1.7.8l1.1 1.7a17 17 0 0 0 5.2-2.7c.5-4.5-.8-8.5-2-12zM8.7 14.9c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1zm6.6 0c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1z"/></svg>
+          Enviar comprobante en Discord
+        </a>
+      </div>
+      <p class="how">1. Paga con PayPal · 2. Manda la captura en nuestro Discord · 3. Te creamos tu cuenta en minutos.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= PREGUNTAS ======================= -->
+<section id="faq" style="padding-top:20px">
+  <div class="wrap">
+    <div class="sec-title"><h2>Preguntas <span>frecuentes</span></h2></div>
+    <div class="faq">
+      <details><summary>¿Qué necesito para usarlo?</summary><p>Un computador con Windows 10 u 11 e internet. Para mostrar alertas en tu LIVE usas OBS o TikTok LIVE Studio (los dos son gratis).</p></details>
+      <details><summary>¿Es seguro? Windows me sale un aviso rojo</summary><p>Sí. El aviso sale porque el programa no tiene firma digital (cuesta mucho dinero al año). Toca "Más información" y "Ejecutar de todas formas". Lo mismo pasa con muchos programas para streamers.</p></details>
+      <details><summary>¿Cómo se actualiza?</summary><p>Solo. Cuando sacamos una versión nueva, al abrir el programa se descarga e instala automáticamente. Tus acciones y configuraciones no se pierden.</p></details>
+      <details><summary>¿Necesito tener GTA V o Minecraft?</summary><p>Solo si quieres usar esos juegos. Para GTA V necesitas la versión de PC en modo historia; para Minecraft, un servidor con el plugin ServerTap (te ayudamos a armarlo).</p></details>
+      <details><summary>¿Puedo usarlo en varias cuentas de TikTok?</summary><p>Cada licencia sirve para una cuenta de TikTok. Si cambias de cuenta, escríbenos en Discord y te la cambiamos.</p></details>
+      <details><summary>¿Cómo pago y cuánto tarda la activación?</summary><p>Pagas con PayPal, mandas la captura en nuestro Discord y te creamos tu usuario y contraseña. Normalmente en pocos minutos.</p></details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <div class="brand" style="font-size:16px"><img src="img/icon.png" alt="" style="width:28px;height:28px">Program<span>Fox</span></div>
+    <div>© <span class="js-year">2026</span> ProgramFox · EDAMLAB. No afiliado a TikTok.</div>
+    <a class="js-discord" href="#" target="_blank" rel="noopener" style="color:#8f98ff">Discord</a>
+  </div>
+</footer>
+
+<script>
+  // ============================================================
+  //  CONFIG: pon aquí tus datos
+  // ============================================================
+  const CONFIG = {
+    githubUsuario: 'edamfox5522',                               // tu usuario de GitHub (ej: 'edamfox')
+    githubRepo: 'programfox',
+    discord: 'https://discord.gg/uxZmrR9UUB',
+    paypal: 'https://www.paypal.me/vanegas5522/10USD',
+    precio: '$10'
+  };
+
+  // El botón de descarga siempre baja la versión más nueva
+  const descarga = CONFIG.githubUsuario
+    ? `https://github.com/${CONFIG.githubUsuario}/${CONFIG.githubRepo}/releases/latest/download/ProgramFox-Setup.exe`
+    : CONFIG.discord;
+  document.querySelectorAll('.js-download').forEach(a => {
+    if (a.getAttribute('href') === '#instalar' && a.closest('header, .hero')) {
+      // el botón de arriba primero lleva a los pasos de instalación
+      a.addEventListener('click', () => setTimeout(() => { location.href = descarga; }, 700));
+    } else {
+      a.href = descarga;
+    }
+  });
+  document.querySelectorAll('.js-discord').forEach(a => { a.href = CONFIG.discord; });
+  document.querySelectorAll('.js-paypal').forEach(a => { a.href = CONFIG.paypal; });
+  document.querySelectorAll('.js-price').forEach(e => { e.textContent = CONFIG.precio; });
+  document.querySelectorAll('.js-year').forEach(e => { e.textContent = new Date().getFullYear(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Chat</title>
+<style>
+  /* Overlay del chat del LIVE. Opciones en la dirección:
+     ?max=8      cuántos mensajes se ven
+     ?fade=40    segundos que dura cada mensaje (0 = no se borran)
+     ?gifts=0    no mostrar regalos
+     ?scale=1.2  más grande
+     ?pos=top    mensajes arriba (por defecto abajo) */
+  :root { --scale: 1; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+  body {
+    font-family: "Segoe UI", "Arial Black", system-ui, sans-serif; color: #fff;
+    font-size: calc(min(100vw / 1080, 100vh / 1920) * 10 * var(--scale));
+  }
+  .list {
+    position: absolute; left: 2em; right: 2em; bottom: 2em;
+    display: flex; flex-direction: column; justify-content: flex-end; gap: 1.2em;
+  }
+  body.top .list { top: 2em; bottom: auto; justify-content: flex-start; flex-direction: column-reverse; }
+  .msg {
+    display: flex; align-items: flex-start; gap: 1.4em;
+    background: linear-gradient(90deg, rgba(18, 14, 28, .88), rgba(18, 14, 28, .62));
+    border: .25em solid rgba(255, 255, 255, .1); border-radius: 2.2em;
+    padding: 1.3em 2em 1.3em 1.3em; box-shadow: 0 .6em 1.8em rgba(0, 0, 0, .35);
+    animation: entra .35s cubic-bezier(.2, 1.3, .5, 1);
+    max-width: 100%;
+  }
+  .msg.gift { border-color: rgba(255, 196, 70, .6); background: linear-gradient(90deg, rgba(60, 38, 8, .9), rgba(30, 20, 8, .7)); }
+  .msg.follow, .msg.share { border-color: rgba(37, 244, 238, .5); }
+  .msg.out { animation: sale .5s forwards; }
+  .av { width: 7em; height: 7em; border-radius: 50%; object-fit: cover; flex: none; background: #3a3346; box-shadow: 0 0 0 .3em rgba(255, 255, 255, .2); }
+  .av.letter { display: grid; place-items: center; font-weight: 900; font-size: 1em; }
+  .av.letter span { font-size: 3.4em; }
+  .body { min-width: 0; flex: 1; padding-top: .2em; }
+  .who { display: flex; align-items: center; gap: .8em; font-size: 2.6em; font-weight: 800; color: #9fd8ff; line-height: 1.2; }
+  .who .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fl { height: 1.05em; width: 1.55em; object-fit: cover; border-radius: .18em; box-shadow: 0 0 0 .08em rgba(255,255,255,.4); flex: none; }
+  .text { font-size: 3.2em; font-weight: 600; line-height: 1.3; word-break: break-word; text-shadow: 0 .06em .15em #000; }
+  .msg.gift .text { color: #ffd24a; font-weight: 800; }
+  .gimg { height: 1.3em; vertical-align: -.25em; margin-left: .2em; }
+  @keyframes entra { from { opacity: 0; transform: translateX(-4em) scale(.95); } to { opacity: 1; transform: none; } }
+  @keyframes sale { to { opacity: 0; transform: translateX(-3em); } }
+</style>
+</head>
+<body>
+<div class="list" id="list"></div>
+<script src="pf-config.js"></script>
+<script src="supabase.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const MAX = Math.max(1, Number(q.get('max')) || 8);
+  const FADE = q.has('fade') ? Number(q.get('fade')) || 0 : 45;
+  const GIFTS = q.get('gifts') !== '0';
+  if (q.get('scale')) document.documentElement.style.setProperty('--scale', q.get('scale'));
+  if (q.get('pos') === 'top') document.body.classList.add('top');
+  const list = document.getElementById('list');
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const flag = (c) => `https://flagcdn.com/w80/${String(c || '').toLowerCase()}.png`;
+
+  function add(m) {
+    const d = document.createElement('div');
+    d.className = 'msg ' + (m.kind || 'chat');
+    const name = m.nickname || m.uniqueId || '???';
+    const av = m.avatar
+      ? `<img class="av" src="${esc(m.avatar)}" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;av letter&quot;><span>${esc(name.charAt(0).toUpperCase())}</span></div>'">`
+      : `<div class="av letter"><span>${esc(name.charAt(0).toUpperCase())}</span></div>`;
+    let text = esc(m.text);
+    if (m.kind === 'gift' && m.giftImg) text += `<img class="gimg" src="${esc(m.giftImg)}" referrerpolicy="no-referrer">`;
+    d.innerHTML = `${av}<div class="body"><div class="who">${m.code ? `<img class="fl" src="${flag(m.code)}" onerror="this.remove()">` : ''}<span class="name">${esc(name)}</span></div><div class="text">${text}</div></div>`;
+    list.appendChild(d);
+    while (list.children.length > MAX) list.firstElementChild.remove();
+    if (FADE > 0) setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 500); }, FADE * 1000);
+  }
+
+  function fromEvent(ev) {
+    const u = ev.user || {};
+    const base = { nickname: u.nickname, uniqueId: u.uniqueId, avatar: u.avatar, code: ev.code };
+    if (ev.type === 'chat') return { ...base, kind: 'chat', text: ev.comment };
+    if (!GIFTS) return null;
+    if (ev.type === 'gift') return { ...base, kind: 'gift', text: `envió ${ev.gift.count}x ${ev.gift.name}`, giftImg: ev.gift.image };
+    if (ev.type === 'follow') return { ...base, kind: 'follow', text: '¡te empezó a seguir! 💙' };
+    if (ev.type === 'share') return { ...base, kind: 'share', text: 'compartió el LIVE 🔁' };
+    return null;
+  }
+
+  if (q.get('preview') === '1') {
+    const demo = [
+      { nickname: 'Camila', code: 'co', kind: 'chat', text: 'colombia 🇨🇴' },
+      { nickname: 'ElPepe_MX', code: 'mx', kind: 'chat', text: 'vamos méxico!!' },
+      { nickname: 'Valen', code: 'ar', kind: 'gift', text: 'envió 5x Rosa' },
+      { nickname: 'Juanito', kind: 'chat', text: 'hola a todos 👋' },
+      { nickname: 'Sofi.es', code: 'es', kind: 'follow', text: '¡te empezó a seguir! 💙' }
+    ];
+    let i = 0;
+    demo.forEach(add);
+    setInterval(() => add(demo[i++ % demo.length]), 2500);
+  } else {
+    pfConnect((m) => {
+      if (m.type === 'chat-event') { const x = fromEvent(m.event); if (x) add(x); }
+    }, 'chat');
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Alertas</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+  body { font-family: "Segoe UI", "Arial Black", system-ui, sans-serif; color: #fff; }
+  .stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .alert {
+    display: flex; flex-direction: column; align-items: center; gap: 1.6vh;
+    max-width: 86vw; padding: 3vh 4vh; border-radius: 3vh; text-align: center;
+    background: rgba(15, 12, 22, .82); border: .35vh solid var(--c, #ff7a18);
+    box-shadow: 0 0 4vh var(--c, #ff7a18);
+    animation: pop .5s cubic-bezier(.2, 1.5, .4, 1);
+  }
+  .alert.out { animation: bye .4s ease-in forwards; }
+  .alert.media-only { background: none; border: none; box-shadow: none; padding: 0; }
+  .alert.media-only img, .alert.media-only video { max-width: 90vw; max-height: 80vh; border-radius: 0; }
+  .alert img, .alert video { max-width: 70vw; max-height: 38vh; border-radius: 1.5vh; }
+  .alert .av { width: 9vh; height: 9vh; border-radius: 50%; object-fit: cover; border: .4vh solid var(--c, #ff7a18); }
+  .alert .txt { font-size: 4.6vh; font-weight: 900; text-shadow: 0 .3vh .8vh #000; line-height: 1.2; }
+  @keyframes pop { from { opacity: 0; transform: scale(.4) translateY(6vh); } }
+  @keyframes bye { to { opacity: 0; transform: scale(.8) translateY(-4vh); } }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage"></div>
+<script src="pf-config.js"></script>
+<script src="supabase.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  // Las alertas se muestran una por una (en cola), sin taparse entre sí.
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // Pantalla de este overlay: /alertas?screen=2  (sin nada = pantalla 1; screen=all = todas)
+  const SCREEN = new URLSearchParams(location.search).get('screen') || '1';
+  const queue = [];
+  let busy = false;
+
+  function next() {
+    if (busy || !queue.length) return;
+    busy = true;
+    const a = queue.shift();
+    const stage = document.getElementById('stage');
+    const isVideo = a.isVideo || /\.(mp4|webm)(\?|$)/i.test(a.image || '');
+    const media = a.image
+      ? (isVideo ? `<video src="${esc(a.image)}" autoplay ${a.mediaOnly ? '' : 'muted'} playsinline></video>` : `<img src="${esc(a.image)}">`)
+      : (a.avatar ? `<img class="av" src="${esc(a.avatar)}">` : '');
+    const div = document.createElement('div');
+    div.className = 'alert' + (a.mediaOnly ? ' media-only' : '');
+    div.style.setProperty('--c', a.color || '#ff7a18');
+    div.innerHTML = `${media}${a.text ? `<div class="txt">${esc(a.text)}</div>` : ''}`;
+    stage.appendChild(div);
+    setTimeout(() => {
+      div.classList.add('out');
+      setTimeout(() => { div.remove(); busy = false; next(); }, 400);
+    }, Math.max(1, a.duration || 5) * 1000);
+  }
+
+  pfConnect((m) => {
+    if (m.type === 'alert' && (SCREEN === 'all' || String(m.screen || 1) === SCREEN)) {
+      if (queue.length < 50) queue.push({ ...m, image: pfMedia(m.image) });
+      next();
+    }
+  }, 'alertas');
+</script>
+</body>
+</html>
