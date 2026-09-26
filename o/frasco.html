@@ -250,7 +250,7 @@
     const oro = (x0, y0, x1, y1) => { const g = ctx.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, '#fff0a6'); g.addColorStop(.35, '#ffc93a'); g.addColorStop(.7, '#d18a0c'); g.addColorStop(1, '#ffdf6b'); return g; };
     const remache = (x, y) => { ctx.fillStyle = '#fff3b8'; ctx.fill(elipse(x, y, 3.2, 3.2)); ctx.fillStyle = '#9c6400'; ctx.fill(elipse(x + .8, y + .8, 1.6, 1.6)); };
     return {
-      dentro: [[L + 22, 118], [L + 22, 350], [R - 22, 350], [R - 22, 118]], entra: { x0: 170, x1: 330, y: 126 }, lleno: 132,
+      dentro: [[L + 22, 150], [L + 22, 350], [R - 22, 350], [R - 22, 150]], fuera: [[L - 6, 136], [R + 6, 136], [R + 6, FB], [L - 6, FB]], entra: { x0: 170, x1: 330, y: 158 },
       atras() {
         ctx.save();
         const s = ctx.createRadialGradient(CX, FB + 4, 10, CX, FB + 4, 200); s.addColorStop(0, 'rgba(0,0,0,.45)'); s.addColorStop(1, 'rgba(0,0,0,0)');
@@ -365,7 +365,9 @@
   };
   const ALC = (ESTILOS[ESTILO] || ESTILOS[1])();
 
-  // ---------- Física de las monedas ----------
+  // ---------- Física de los regalos ----------
+  // Caen los REGALOS de TikTok (su imagen). Entre más monedas vale, más grande.
+  // Si la alcancía ya está llena, los que siguen se riegan por fuera y quedan en el piso.
   const imgs = {};
   function imagen(url) {
     if (!url) return null;
@@ -373,114 +375,173 @@
     const im = imgs[url];
     return im.complete && im.naturalWidth ? im : null;
   }
-  const radio = (coins) => Math.max(11, Math.min(32, 10 + Math.log10(Math.max(1, coins)) * 5.5));
+  const radio = (coins) => Math.max(12, Math.min(34, 12 + Math.log10(Math.max(1, coins)) * 5.2));
 
   let monedas = [];
-  const MAX = Number(q.get('max')) || 200;
+  const MAX = Number(q.get('max')) || 320;
+  const MAX_FUERA = Number(q.get("fuera")) || 20;
+  const PISO = { 1: 462, 2: 424, 3: 452, 4: 468, 5: 462 }[ESTILO] || 462;
 
+  const POLY = ALC.dentro;
+  // borde de afuera (para que los que se riegan rueden por encima)
+  const FUERA = (() => {
+    if (ALC.fuera) return ALC.fuera;
+    const cx = POLY.reduce((s, p) => s + p[0], 0) / POLY.length, cy = POLY.reduce((s, p) => s + p[1], 0) / POLY.length;
+    return POLY.map(([x, y]) => { const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) || 1; return [x + dx / d * 15, y + dy / d * 15]; });
+  })();
+
+  const TOPE = FUERA.reduce((a, p) => Math.min(a, p[1]), 1e9);
+  const X0 = FUERA.reduce((a, p) => Math.min(a, p[0]), 1e9), X1 = FUERA.reduce((a, p) => Math.max(a, p[0]), -1e9);
   function soltar(img, coins) {
     const r = radio(coins);
     const e = ALC.entra;
     const x = e.x0 + Math.random() * Math.max(0, e.x1 - e.x0);
     const y = -r - Math.random() * 40;
-    monedas.push({ x, y, px: x, py: y - 3, r, img, coins, rot: Math.random() * 6.28, vr: (Math.random() - .5) * .2, cae: true, spin: Math.random() * 6 });
-    if (monedas.length > MAX) monedas.splice(0, monedas.length - MAX);
+    monedas.push({ x, y, px: x, py: y - 3, r, img, coins, rot: (Math.random() - .5) * .6, vr: (Math.random() - .5) * .04, cae: true, dentro: true });
+    // afuera caben unos cuantos; los más viejos se van
+    const fuera = monedas.filter(m => !m.dentro && !m.cae);
+    if (fuera.length > MAX_FUERA) monedas.splice(monedas.indexOf(fuera[0]), 1);
+    if (monedas.length > MAX) {
+      // se quitan primero los más viejos de afuera
+      const i = monedas.findIndex(m => !m.dentro && !m.cae);
+      monedas.splice(i >= 0 ? i : 0, 1);
+    }
     guardarLuego();
   }
 
-  const POLY = ALC.dentro;
-  function dentroPoly(x, y) {
+  function enPoly(poly, x, y) {
     let s = false;
-    for (let i = 0, j = POLY.length - 1; i < POLY.length; j = i++) {
-      const [xi, yi] = POLY[i], [xj, yj] = POLY[j];
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i], [xj, yj] = poly[j];
       if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) s = !s;
     }
     return s;
   }
-  function contener(m) {
+  function masCerca(poly, m) {
     let best = 1e9, bx = 0, by = 0;
-    for (let i = 0, j = POLY.length - 1; i < POLY.length; j = i++) {
-      const [ax, ay] = POLY[j], [cx, cy] = POLY[i];
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [ax, ay] = poly[j], [cx, cy] = poly[i];
       const dx = cx - ax, dy = cy - ay, l2 = dx * dx + dy * dy || 1;
       let t = ((m.x - ax) * dx + (m.y - ay) * dy) / l2; t = t < 0 ? 0 : t > 1 ? 1 : t;
       const px = ax + dx * t, py = ay + dy * t, d = (m.x - px) ** 2 + (m.y - py) ** 2;
       if (d < best) { best = d; bx = px; by = py; }
     }
-    const d = Math.sqrt(best), ins = dentroPoly(m.x, m.y);
+    return [Math.sqrt(best), bx, by];
+  }
+  // adentro: no puede salirse
+  function contener(m) {
+    const [d, bx, by] = masCerca(POLY, m), ins = enPoly(POLY, m.x, m.y);
     if (ins && d >= m.r) return;
     let nx, ny;
     if (d < 1e-4) { nx = CX - m.x; ny = 300 - m.y; const n = Math.hypot(nx, ny) || 1; nx /= n; ny /= n; }
     else if (ins) { nx = (m.x - bx) / d; ny = (m.y - by) / d; }
     else { nx = (bx - m.x) / d; ny = (by - m.y) / d; }
     m.x = bx + nx * m.r; m.y = by + ny * m.r;
-    m.px += (m.x - m.px) * 0.15; m.py += (m.y - m.py) * 0.05;   // un poco de roce
+    m.px += (m.x - m.px) * 0.15; m.py += (m.y - m.py) * 0.05;
+  }
+  // afuera: no puede meterse (rueda por encima) y cae al piso
+  function repeler(m) {
+    const [d, bx, by] = masCerca(FUERA, m), ins = enPoly(FUERA, m.x, m.y);
+    if (!ins && d >= m.r) return;
+    let nx, ny;
+    if (d < 1e-4) { nx = m.x < CX ? -1 : 1; ny = 0; }
+    else if (ins) { nx = (bx - m.x) / d; ny = (by - m.y) / d; }
+    else { nx = (m.x - bx) / d; ny = (m.y - by) / d; }
+    const ox = m.x, oy = m.y;
+    m.x = bx + nx * m.r; m.y = by + ny * m.r;
+    m.px += (m.x - ox) * 0.9; m.py += (m.y - oy) * 0.9;   // sin rebotes locos
+    // si quedó encima de la alcancía, se resbala hacia un lado
+    if (ny < -0.2) { const d = (m.x < CX ? -1 : 1) * 0.12; m.x += d; m.px += d; }
+  }
+
+  function libre(yo) {
+    return !monedas.some(o => o !== yo && !o.cae && o.dentro && Math.abs(o.y - o.py) < 0.6 && (o.x - yo.x) ** 2 + (o.y - yo.y) ** 2 < ((o.r + yo.r) * 1.1) ** 2);
   }
 
   function paso() {
     const G = 0.42;
     for (const m of monedas) {
       if (m.cae) {
-        const vy = m.y - m.py + G; m.py = m.y; m.y += vy; m.px = m.x; m.spin += .25;
-        if (m.y >= ALC.entra.y) { m.cae = false; m.py = m.y - Math.min(vy, 6); }
+        const vy = m.y - m.py + G; m.py = m.y; m.y += vy; m.px = m.x;
+        if (m.y >= ALC.entra.y) {
+          m.cae = false;
+          m.py = m.y - Math.min(vy, 6);
+          // ¿ya no cabe? se queda afuera y se riega
+          if (!libre(m)) {
+            m.dentro = false;
+            m.y = Math.min(m.y, FUERA.reduce((s, p) => Math.min(s, p[1]), 1e9) - m.r - 2);
+            m.py = m.y;
+            m.px = m.x - (Math.random() < .5 ? -1 : 1) * (0.3 + Math.random() * 0.6);
+          }
+        }
         continue;
       }
-      const vx = (m.x - m.px) * 0.99, vy = (m.y - m.py) * 0.99;
+      let vx = (m.x - m.px) * 0.99, vy = (m.y - m.py) * 0.99;
+      // límite de velocidad (nada sale volando)
+      const lim = m.dentro ? 9 : 5;
+      vx = Math.max(-lim, Math.min(lim, vx)); vy = Math.max(-lim, Math.min(m.dentro ? 14 : 10, vy));
       m.px = m.x; m.py = m.y;
       m.x += vx; m.y += vy + G;
-      m.rot += m.vr; m.vr *= 0.985;
+      m.rot += m.vr; m.vr *= 0.97;
     }
     for (let it = 0; it < 4; it++) {
       for (let i = 0; i < monedas.length; i++) {
         const a = monedas[i]; if (a.cae) continue;
         for (let j = i + 1; j < monedas.length; j++) {
-          const b = monedas[j]; if (b.cae) continue;
+          const b = monedas[j]; if (b.cae || a.dentro !== b.dentro) continue;
           const dx = b.x - a.x, dy = b.y - a.y, min = a.r + b.r;
           const d2 = dx * dx + dy * dy;
           if (d2 < min * min && d2 > 0.0001) {
             const d = Math.sqrt(d2), o = (min - d) / 2, nx = dx / d, ny = dy / d;
             a.x -= nx * o; a.y -= ny * o; b.x += nx * o; b.y += ny * o;
-            a.vr += nx * 0.01; b.vr -= nx * 0.01;
+            a.vr += nx * 0.004; b.vr -= nx * 0.004;
           }
         }
       }
-      for (const m of monedas) if (!m.cae) contener(m);
+      for (const m of monedas) {
+        if (m.cae) continue;
+        if (m.dentro) { contener(m); continue; }
+        repeler(m);
+        // si quedó quieto en el aire (encima de la alcancía o de otros), se resbala hacia el piso
+        if (m.y < PISO - m.r - 24 && m.x > X0 - 10 && m.x < X1 + 10 && Math.abs(m.x - m.px) + Math.abs(m.y - m.py) < 0.9) { const d = (m.x < CX ? -1 : 1) * 0.15; m.x += d; m.px += d; }
+        if (m.y > PISO - m.r) { m.y = PISO - m.r; m.px += (m.x - m.px) * 0.7; }
+      }
     }
   }
 
   function dibujarMoneda(m) {
     ctx.save();
     ctx.translate(m.x, m.y);
-    if (m.cae) ctx.scale(Math.max(.25, Math.abs(Math.cos(m.spin))), 1);   // gira mientras cae
-    ctx.beginPath(); ctx.arc(0, 2, m.r, 0, Math.PI * 2); ctx.fillStyle = '#9a5b00'; ctx.fill();
-    const g = ctx.createRadialGradient(-m.r * .35, -m.r * .4, m.r * .1, 0, 0, m.r);
-    g.addColorStop(0, '#fff4b8'); g.addColorStop(.45, '#ffcd35'); g.addColorStop(1, '#e08a00');
-    ctx.beginPath(); ctx.arc(0, 0, m.r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-    ctx.lineWidth = Math.max(1.5, m.r * .09); ctx.strokeStyle = '#b86a00'; ctx.stroke();
-    ctx.beginPath(); ctx.arc(0, 0, m.r * .78, 0, Math.PI * 2); ctx.lineWidth = Math.max(1, m.r * .06); ctx.strokeStyle = 'rgba(150, 80, 0, .55)'; ctx.stroke();
     const im = imagen(m.img);
     if (im) {
-      ctx.rotate(m.rot * .15);
-      const s = m.r * 1.3;
+      // el regalo de TikTok tal cual
+      ctx.rotate(m.rot);
+      const s = m.r * 2.9;
+      ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3;
       ctx.drawImage(im, -s / 2, -s / 2, s, s);
     } else {
+      // sin imagen: una moneda dorada
+      ctx.beginPath(); ctx.arc(0, 2, m.r, 0, Math.PI * 2); ctx.fillStyle = '#9a5b00'; ctx.fill();
+      const g = ctx.createRadialGradient(-m.r * .35, -m.r * .4, m.r * .1, 0, 0, m.r);
+      g.addColorStop(0, '#fff4b8'); g.addColorStop(.45, '#ffcd35'); g.addColorStop(1, '#e08a00');
+      ctx.beginPath(); ctx.arc(0, 0, m.r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+      ctx.lineWidth = Math.max(1.5, m.r * .09); ctx.strokeStyle = '#b86a00'; ctx.stroke();
       ctx.fillStyle = 'rgba(150, 80, 0, .75)'; ctx.font = `900 ${Math.round(m.r * 1.05)}px Arial Black, sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 0, 1);
     }
     ctx.restore();
   }
 
-  let cuenta = 0;
   function cuadro() {
     paso();
-    if (++cuenta % 20 === 0) {
-      const arriba = monedas.filter(m => !m.cae && m.y < ALC.lleno && Math.abs(m.y - m.py) < 0.6).length;
-      if (arriba > 0) monedas.splice(0, Math.min(arriba * 2, 12));
-    }
+    // los que se salen de la pantalla por los lados, se van
+    if (monedas.some(m => !m.dentro && (m.x < -60 || m.x > W + 60))) monedas = monedas.filter(m => m.dentro || (m.x >= -60 && m.x <= W + 60));
     giro += 0.004;
     ctx.clearRect(0, 0, W, H);
     ALC.atras();
-    for (const m of monedas) dibujarMoneda(m);
+    for (const m of monedas) if (m.dentro && !m.cae) dibujarMoneda(m);
     ALC.frente();
+    for (const m of monedas) if (!m.dentro || m.cae) dibujarMoneda(m);
     requestAnimationFrame(cuadro);
   }
 
