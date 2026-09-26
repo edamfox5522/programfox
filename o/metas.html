@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Metas</title>
+<style>
+  /* Barras de meta. En el enlace:
+       ?m=coins     Meta de Monedas        ?m=likes    Meta de Likes
+       ?m=follows   Meta de Seguidores     ?m=combined las 3 turnándose (&t=7 segundos)
+     Se ajusta solo al ancho de la fuente (ej: 800 x 200). */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  body { font-family: 'Segoe UI', 'Arial Black', system-ui, sans-serif; color: #fff; display: grid; place-items: center; }
+  .stage { width: 760px; height: 150px; position: relative; perspective: 900px; }
+
+  .meta { position: absolute; left: 10px; right: 10px; top: 15px; height: 120px; border-radius: 26px;
+    background: linear-gradient(180deg, #1b2233, #0f1420); border: 3px solid rgba(255,255,255,.14);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.06); overflow: hidden; }
+  .meta.enter { animation: gira-in .7s cubic-bezier(.2, 1.2, .4, 1); }
+  .meta.leave { animation: gira-out .45s ease-in forwards; }
+  @keyframes gira-in { from { transform: rotateX(-90deg); opacity: 0; } }
+  @keyframes gira-out { to { transform: rotateX(90deg); opacity: 0; } }
+
+  .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; min-width: 44px; border-radius: 22px 0 0 22px;
+    background: repeating-linear-gradient(-45deg, var(--c1) 0 26px, var(--c2) 26px 52px);
+    background-size: 73.5px 73.5px; animation: rayas 1.4s linear infinite;
+    transition: width .9s cubic-bezier(.2, 1, .3, 1); box-shadow: 6px 0 18px var(--glow); }
+  .fill.full { border-radius: 22px; }
+  .fill::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%);
+    transform: translateX(-100%); animation: brillo 2.6s ease-in-out infinite; }
+  @keyframes rayas { to { background-position: 73.5px 0; } }
+  @keyframes brillo { 60%, 100% { transform: translateX(100%); } }
+
+  .label { position: absolute; left: 26px; top: 50%; transform: translateY(-50%); z-index: 2;
+    padding: 10px 20px; border-radius: 99px; background: rgba(40, 32, 20, .88); box-shadow: 0 4px 14px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12);
+    font-weight: 900; font-size: 25px; letter-spacing: 3px; text-transform: uppercase; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .label i { font-style: normal; font-size: 26px; letter-spacing: 0; }
+
+  .num { position: absolute; right: 34px; top: 50%; transform: translateY(-50%); z-index: 2; font-weight: 900; font-size: 46px; white-space: nowrap;
+    text-shadow: 0 3px 0 rgba(0,0,0,.5), 0 6px 14px rgba(0,0,0,.5); letter-spacing: -1px; }
+  .num small { font-size: 46px; color: rgba(255,255,255,.62); font-weight: 900; }
+  .num.pop b { display: inline-block; animation: pop .5s cubic-bezier(.2, 1.8, .4, 1); }
+  @keyframes pop { 0% { transform: scale(1.35); color: var(--c1); } 100% { transform: none; } }
+
+  .meta.done { border-color: var(--c1); animation: late 1s ease-in-out infinite alternate; }
+  @keyframes late { to { box-shadow: 0 0 34px var(--glow), 0 10px 30px rgba(0,0,0,.45); } }
+
+  .coins { --c1: #e8b83a; --c2: #c99526; --glow: rgba(255, 196, 60, .55); }
+  .likes { --c1: #ff5c93; --c2: #e0336f; --glow: rgba(255, 80, 140, .55); }
+  .follows { --c1: #27d8c6; --c2: #13a99a; --glow: rgba(40, 220, 200, .5); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage"></div>
+
+<script src="pf-config.js"></script>
+<script src="supabase.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const MODO = ['coins', 'likes', 'follows', 'combined'].includes(q.get('m')) ? q.get('m') : 'coins';
+  const TURNO = Math.max(3, Number(q.get('t')) || 7) * 1000;
+  const INFO = {
+    coins: { t: 'Diamantes', i: '💎' },
+    likes: { t: 'Likes', i: '❤️' },
+    follows: { t: 'Seguidores', i: '➕' }
+  };
+  const num = (n) => Number(n || 0).toLocaleString('en-US');
+  const stage = document.getElementById('stage');
+
+  function ajustar() {
+    const z = Math.min(innerWidth / 760, innerHeight / 150) * (Number(q.get('zoom')) || 1);
+    stage.style.zoom = z > 0 ? z : 1;
+  }
+  addEventListener('resize', ajustar);
+  ajustar();
+
+  let M = { coins: { value: 0, target: 5000 }, likes: { value: 0, target: 10000 }, follows: { value: 0, target: 100 } };
+  let actual = MODO === 'combined' ? 'coins' : MODO;
+  let el = null;
+
+  function crear(w) {
+    const d = document.createElement('div');
+    d.className = 'meta ' + w;
+    d.innerHTML = `<div class="fill"></div><div class="label"><i>${INFO[w].i}</i>${INFO[w].t}</div><div class="num"><b></b> <small></small></div>`;
+    return d;
+  }
+  function pintar(w, pop) {
+    const m = M[w];
+    const pct = Math.min(100, (m.value / Math.max(1, m.target)) * 100);
+    const f = el.querySelector('.fill');
+    f.style.width = pct + '%';
+    f.classList.toggle('full', pct >= 100);
+    el.classList.toggle('done', m.value >= m.target);
+    const n = el.querySelector('.num');
+    n.querySelector('b').textContent = num(m.value);
+    n.querySelector('small').textContent = '/ ' + num(m.target);
+    if (pop) { n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop'); }
+  }
+  function mostrar(w, animar) {
+    const nuevo = crear(w);
+    if (el && animar) { const viejo = el; viejo.classList.add('leave'); setTimeout(() => viejo.remove(), 450); }
+    else if (el) el.remove();
+    if (animar) nuevo.classList.add('enter');
+    stage.appendChild(nuevo);
+    el = nuevo;
+    pintar(w, false);
+  }
+  mostrar(actual, true);
+
+  function actualizar(metas) {
+    if (!metas) return;
+    const antes = M[actual].value;
+    M = metas;
+    pintar(actual, M[actual].value !== antes);
+  }
+
+  if (MODO === 'combined') {
+    setInterval(() => {
+      const orden = ['coins', 'likes', 'follows'];
+      actual = orden[(orden.indexOf(actual) + 1) % 3];
+      mostrar(actual, true);
+    }, TURNO);
+  }
+
+  pfConnect((m) => { if (m.type === 'gift-stats' && m.stats) actualizar(m.stats.metas); }, 'metas');
+</script>
+</body>
+</html>
