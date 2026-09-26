@@ -421,15 +421,15 @@
 
   const TOPE = FUERA.reduce((a, p) => Math.min(a, p[1]), 1e9);
   const X0 = FUERA.reduce((a, p) => Math.min(a, p[0]), 1e9), X1 = FUERA.reduce((a, p) => Math.max(a, p[0]), -1e9);
+  let lleno = false;   // cuando se llena, lo de adentro se congela y ya nunca se mueve
   function soltar(img, coins) {
     const r = radio(coins);
     const e = ALC.entra;
     const x = e.x0 + Math.random() * Math.max(0, e.x1 - e.x0);
     const y = -r - Math.random() * 40;
+    // Ya lleno y con el montón de afuera completo: no cae nada más (el total sí sigue sumando)
+    if (lleno && monedas.filter(m => !m.dentro || m.cae).length >= MAX_FUERA) return;
     monedas.push({ x, y, px: x, py: y - 3, r, img, coins, rot: (Math.random() - .5) * .6, cae: true, dentro: true });
-    // afuera caben unos cuantos; los más viejos se van
-    const fuera = monedas.filter(m => !m.dentro && !m.cae);
-    if (fuera.length > MAX_FUERA) { monedas.splice(monedas.indexOf(fuera[0]), 1); despertar(false); }
     guardarLuego();
   }
 
@@ -483,13 +483,20 @@
   function libre(yo) {
     let ocupado = 0;
     for (const o of monedas) if (o !== yo && o.dentro) ocupado += Math.PI * o.r * o.r;
-    if (ocupado + Math.PI * yo.r * yo.r > AREA * 0.8) return false;
+    if (ocupado + Math.PI * yo.r * yo.r > AREA * 0.8) { llenar(); return false; }
     // o si la montaña ya llegó hasta la entrada
-    return !monedas.some(o => o !== yo && !o.cae && o.dentro && o.duerme &&
+    const cabe = !monedas.some(o => o !== yo && !o.cae && o.dentro && o.duerme &&
       o.y - o.r < ALC.entra.y + 4 && Math.abs(o.x - yo.x) < o.r + yo.r + 30);
+    if (!cabe) llenar();
+    return cabe;
   }
 
-  function despertar(todos = true) { for (const m of monedas) if (todos || !m.dentro) { m.duerme = false; m.quieto = 0; } }
+  function despertar(todos = true) { for (const m of monedas) if (!m.fijo && (todos || !m.dentro)) { m.duerme = false; m.quieto = 0; } }
+  function llenar() {
+    if (lleno) return;
+    lleno = true;
+    for (const m of monedas) if (m.dentro && !m.cae && m.duerme) m.fijo = true;
+  }
 
   function paso() {
     const G = 0.42;
@@ -531,7 +538,7 @@
             // roce: quita un poco del deslizamiento para que no tiemblen
             if (!a.duerme) { a.px += (a.x - a.px) * 0.08; }
             if (!b.duerme) { b.px += (b.x - b.px) * 0.08; }
-            if (o > 3) { a.duerme = b.duerme = false; }
+            if (o > 3) { if (!a.fijo) a.duerme = false; if (!b.fijo) b.duerme = false; }
           }
         }
       }
@@ -554,6 +561,8 @@
       const v = Math.hypot(m.x - (m.x0 ?? m.x), m.y - (m.y0 ?? m.y));
       m.quieto = v < 0.35 ? (m.quieto || 0) + 1 : 0;
       if (m.quieto > 45) { m.duerme = true; m.px = m.x; m.py = m.y; }
+      // lleno: lo que se queda quieto ya no se vuelve a mover nunca (adentro y afuera)
+      if (m.duerme && (lleno || !m.dentro)) m.fijo = true;
     }
   }
 
@@ -649,7 +658,7 @@
     pintarBarras(true);
     for (let i = 0; i < n; i++) setTimeout(() => soltar(g.image || '', Number(g.coins) || 1), i * 140);
   }
-  function vaciar() { monedas = []; donadores = {}; total = 0; pintarBarras(false); guardarLuego(); }
+  function vaciar() { monedas = []; lleno = false; donadores = {}; total = 0; pintarBarras(false); guardarLuego(); }
 
   if (DEMO) {
     let lista = [];
