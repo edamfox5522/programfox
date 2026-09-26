@@ -4,234 +4,269 @@
 <meta charset="utf-8">
 <title>ProgramFox - Juego de Banderas</title>
 <style>
-  /* Medidas pensadas para 1080x1920 (vertical). 1em = 10px en ese tamaño.
-     Se adapta sola a cualquier tamaño. Escala extra: /banderas?scale=1.2 */
-  :root { --scale: 1; }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
-  body {
-    -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision;
-    font-family: "Segoe UI", "Arial Black", system-ui, sans-serif; color: #fff;
-    font-size: calc(min(100vw / 1080, 100vh / 1920) * 10 * var(--scale));
+  /* Diseño del juego original (juego-paises-tiktok): tamaños FIJOS en píxeles,
+     banderas en las orillas, reloj arriba al centro.
+     Opciones en el enlace:  &zoom=1.3 (más grande)   &eventos=1 (avisos abajo a la izquierda) */
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+  html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
+
+  /* ---------- Tablero principal ---------- */
+  .board { display: flex; align-items: flex-start; justify-content: space-between; width: 100%; padding: 26px 16px 20px; gap: 10px; }
+  .countries { display: flex; flex-direction: column; gap: 8px; width: 96px; }
+  .country-card { position: relative; display: flex; align-items: center; justify-content: center; }
+  .flag-wrap { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; }
+  .flag-plate {
+    position: relative; width: 62px; height: 62px; border-radius: 12px;
+    background: rgba(10, 10, 18, 0.55); border: 2px solid rgba(255, 255, 255, 0.25);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
   }
-  /* Centrado SIN transform: así el texto queda nítido (translate -50% lo ponía en medio píxel = borroso) */
-  /* Centrado SIN transform (así el texto queda nítido) */
-  .wrap { position: absolute; left: 0; right: 0; top: 0; margin: 0 auto; width: 108em; height: 100%; }
-  /* Contorno negro para que se lea sobre la cámara */
-  .out-txt { color: #fff; font-weight: 900; text-shadow: -.06em -.06em 0 #000, .06em -.06em 0 #000, -.06em .06em 0 #000, .06em .06em 0 #000, 0 .08em .25em rgba(0,0,0,.7); }
+  .flag-img { width: 100%; height: 100%; object-fit: cover; }
+  .flag-fallback { width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #fff; background: #333; }
 
-  /* ---------- reloj (arriba al centro, transparente) ---------- */
-  .timer { position: absolute; top: 37em; left: 0; right: 0; text-align: center; font-weight: 900; line-height: 1; }
-  .timer .time { font-size: 8em; color: rgba(255,255,255,.72); font-variant-numeric: tabular-nums; text-shadow: 0 .04em .12em rgba(0,0,0,.45); }
-  .timer.low .time { color: rgba(255,84,112,.9); animation: blink 1s infinite; }
-  .timer .msg { display: inline-block; font-size: 3.4em; padding: .35em .9em; border-radius: 3em; background: rgba(0,0,0,.35); }
-  @keyframes blink { 50% { opacity: .45; } }
+  /* #1 (líder): corona dorada + resplandor */
+  .country-card.leading .flag-plate { border-color: #ffd93d; box-shadow: 0 0 16px rgba(255, 217, 61, 0.75); transform: scale(1.08); }
+  /* #2: plata */
+  .country-card.silver .flag-plate { border-color: #d8dee8; box-shadow: 0 0 10px rgba(216, 222, 232, 0.55); transform: scale(1.03); }
+  /* #3: bronce */
+  .country-card.bronze .flag-plate { border-color: #cd7f32; box-shadow: 0 0 10px rgba(205, 127, 50, 0.55); transform: scale(1.015); }
 
-  /* ---------- columnas de banderas (orilla izquierda y derecha) ---------- */
-  .col { position: absolute; top: 49em; display: flex; flex-direction: column; gap: 1.4em; align-items: center; width: 12em; }
-  .col.left { left: 2.4em; }
-  .col.right { right: 2.4em; }
-  .fcard { position: relative; display: flex; flex-direction: column; align-items: center; gap: .5em; transition: transform .25s; }
-  .fcard .flag { position: relative; width: 11em; height: 7.3em; }
-  .fcard .flag img, .fcard .flag .code { width: 100%; height: 100%; border-radius: 1em; object-fit: cover; display: block;
-    box-shadow: 0 .5em 1.2em rgba(0,0,0,.55), 0 0 0 .3em rgba(255,255,255,.18); }
-  .fcard .flag .code { display: none; place-items: center; background: #3a3346; }
-  .fcard .flag .code span { font-size: 3em; font-weight: 900; }
-  .fcard .pts { font-size: 3.6em; line-height: 1; font-variant-numeric: tabular-nums; }
-  .fcard .badge { position: absolute; top: -1em; left: -1em; width: 3.4em; height: 3.4em; border-radius: 50%;
-    display: grid; place-items: center; background: #1b1b22; border: .3em solid #ffd24a; box-shadow: 0 .3em .8em rgba(0,0,0,.5); }
-  .fcard .badge b { font-size: 1.9em; color: #ffd24a; font-weight: 900; }
-  .fcard .badge.r2 { border-color: #cfd8e3; } .fcard .badge.r2 b { color: #e6edf5; }
-  .fcard .badge.r3 { border-color: #e0a060; } .fcard .badge.r3 b { color: #f0b779; }
-  .fcard .crown { position: absolute; top: -4.6em; left: 0; right: 0; text-align: center; font-size: 1em; }
-  .fcard .crown span { font-size: 4.2em; filter: drop-shadow(0 .1em .15em rgba(0,0,0,.6)); }
-  .fcard.bump { transform: scale(1.15); }
-
-  /* ---------- "+10" cuando un país suma ---------- */
-  .pop { position: absolute; left: 0; right: 0; bottom: 22em; display: flex; justify-content: center; align-items: center; gap: 1.6em;
-    pointer-events: none; animation: popup 1.6s ease-out forwards; }
-  .pop img { width: 10em; height: 6.6em; border-radius: .9em; object-fit: cover; box-shadow: 0 .5em 1.2em rgba(0,0,0,.5); }
-  .pop .n { font-size: 10em; line-height: 1; }
-  @keyframes popup { 0% { opacity: 0; transform: translateY(4em) scale(.6); } 15% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10em); } }
-
-  /* ---------- quién se unió (abajo a la derecha, pequeño) ---------- */
-  .feed { position: absolute; right: 2.4em; bottom: 24em; display: flex; flex-direction: column; align-items: flex-end; gap: 1em; max-width: 60em; }
-  .fi { display: flex; align-items: center; gap: 1.2em; background: rgba(10,10,14,.45); padding: .8em 1.6em .8em .8em; border-radius: 4em; animation: fin .35s ease-out; }
-  .fi .av { width: 5.4em; height: 5.4em; border-radius: 50%; object-fit: cover; flex: none; background: #3a3346; }
-  .fi .tx { display: flex; flex-direction: column; min-width: 0; }
-  .fi .who { font-size: 2.3em; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 18em; }
-  .fi .who small { font-weight: 600; opacity: .7; }
-  .fi .what { font-size: 2.5em; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 18em; }
-  .fi .fl { width: 4.8em; height: 3.2em; border-radius: .4em; object-fit: cover; flex: none; }
-  .fi.out { animation: fout .45s ease-in forwards; }
-  @keyframes fin { from { opacity: 0; transform: translateX(5em); } }
-  @keyframes fout { to { opacity: 0; transform: translateX(5em); } }
-
-  /* ---------- TOP 3 ---------- */
-  .top3 {
-    position: absolute; inset: 0; margin: auto; height: max-content; transform: scale(.8); opacity: 0;
-    width: 80em; padding: 4em 3em 4.5em; border-radius: 4em; text-align: center;
-    background: radial-gradient(circle at 50% 0%, rgba(255,210,74,.35), rgba(18,14,28,.95) 60%);
-    border: .4em solid rgba(255,210,74,.6); box-shadow: 0 1.5em 6em rgba(0,0,0,.6);
-    transition: all .45s cubic-bezier(.2,1.4,.4,1); pointer-events: none;
+  .rank-badge {
+    position: absolute; top: -6px; left: -6px; width: 16px; height: 16px; border-radius: 50%;
+    background: linear-gradient(180deg, #ffe066, #d9a300); border: 2px solid #fff8dd;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); z-index: 2;
   }
-  .top3.show { opacity: 1; transform: none; }
-  .top3 h1 { margin: 0; font-size: 7em; font-weight: 900; }
-  .top3 .sub { font-size: 3em; color: #d8cfe6; margin-bottom: 1.2em; }
-  .podium { display: flex; justify-content: center; align-items: flex-end; gap: 2em; }
-  .pl { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
-  .pl img { width: 13em; height: 8.7em; object-fit: cover; border-radius: 1em; box-shadow: 0 0 0 .35em rgba(255,255,255,.3); }
-  .pl.p1 img { width: 17em; height: 11.3em; }
-  .pl .medal { font-size: 7em; line-height: 1; }
-  .pl .pname { font-size: 3.2em; font-weight: 900; margin-top: .3em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pl .ppts { font-size: 4.4em; font-weight: 900; color: #ffd24a; }
-  .pl .mvp { font-size: 2.2em; color: #cfc7de; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pl .base { width: 100%; margin-top: 1em; border-radius: 1.4em 1.4em 0 0; background: linear-gradient(#ff7a18, #fe2c55); }
-  .pl.p1 .base { height: 16em; }
-  .pl.p2 .base { height: 11em; background: linear-gradient(#c9d6e3, #7f8fa6); }
-  .pl.p3 .base { height: 7.5em; background: linear-gradient(#e0a060, #a0522d); }
-  .nobody { font-size: 3.6em; color: #d8cfe6; padding: 1em 0; }
+  .rank-badge.silver { background: linear-gradient(180deg, #f1f4f9, #b6bfcc); border-color: #ffffff; }
+  .rank-badge.bronze { background: linear-gradient(180deg, #e3975a, #a85d23); border-color: #ffe0bd; }
+  .crown { position: absolute; top: -22px; left: 0; right: 0; text-align: center; font-size: 18px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6)); z-index: 2; }
+
+  .country-points { margin-top: 4px; font-size: 17px; font-weight: 800; color: #fff; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9); min-height: 20px; }
+  .country-card.leading .country-points { color: #ffd93d; }
+  .country-card.silver .country-points { color: #d8dee8; }
+  .country-card.bronze .country-points { color: #e3975a; }
+
+  /* ---------- Centro: reloj ---------- */
+  .center-info { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 6px; }
+  .timer { font-size: 34px; font-weight: 300; color: #fff; letter-spacing: 2px; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); display: inline-block; }
+  /* Últimos 10s: rojo + pulso. Últimos 5s: pulso más rápido */
+  .timer.timer-danger { color: #ff3b3b; animation: timerPulse 0.7s ease-in-out infinite; }
+  .timer.timer-danger.timer-critical { animation-duration: 0.25s; }
+  @keyframes timerPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+
+  /* ---------- "+30s" cuando se agrega tiempo ---------- */
+  .time-added-layer { position: absolute; top: 0; left: 50%; width: 0; height: 0; pointer-events: none; }
+  .time-added { position: absolute; left: 0; top: 0; transform: translate(-50%, 0); font-size: 22px; font-weight: 800; white-space: nowrap; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8); animation: timeAddedFloat 1.4s ease forwards; }
+  .time-added.positive { color: #4ade80; }
+  .time-added.negative { color: #ff6b6b; }
+  @keyframes timeAddedFloat {
+    0% { opacity: 0; transform: translate(-50%, 6px) scale(0.7); }
+    15% { opacity: 1; transform: translate(-50%, -4px) scale(1.15); }
+    30% { opacity: 1; transform: translate(-50%, -8px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -46px) scale(1); }
+  }
+
+  /* ---------- Foto de perfil que "entra" a la bandera ---------- */
+  .boost-layer { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+  .boost-avatar {
+    position: fixed; width: 48px; height: 48px; border-radius: 50%; object-fit: cover;
+    border: 3px solid #ffd93d; box-shadow: 0 0 16px rgba(255, 217, 61, 0.8);
+    transform: translate(-50%, -50%) scale(0.3); animation: boostPop 0.8s ease forwards;
+  }
+  @keyframes boostPop {
+    0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+    30% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    50% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -55%) scale(0.5); opacity: 0; }
+  }
+  .flag-plate.flag-joining { animation: flagJoinPop 0.65s ease; }
+  @keyframes flagJoinPop {
+    0% { box-shadow: 0 0 0 rgba(255, 217, 61, 0); transform: scale(1); }
+    30% { box-shadow: 0 0 22px rgba(255, 217, 61, 0.95); transform: scale(1.18); }
+    100% { box-shadow: 0 0 0 rgba(255, 217, 61, 0); transform: scale(1); }
+  }
+
+  /* ---------- Pantalla TOP 3 ---------- */
+  .top3-overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); }
+  .top3-overlay.show { display: flex; }
+  .top3-card { background: rgba(10, 10, 15, 0.95); border: 3px solid #ffd93d; border-radius: 20px; padding: 40px 60px; text-align: center; box-shadow: 0 0 40px rgba(255, 217, 61, 0.5); }
+  .top3-card h1 { color: #ffd93d; font-size: 40px; margin-bottom: 24px; text-shadow: 0 2px 6px rgba(0,0,0,0.8); }
+  .top3-list { display: flex; flex-direction: column; gap: 14px; }
+  .top3-row { display: flex; align-items: center; justify-content: space-between; gap: 30px; font-size: 26px; font-weight: 800; color: #fff; }
+  .top3-row .medal { font-size: 30px; }
+  .top3-flag { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+  .top3-row .pts { color: #ffd93d; }
+  .top3-empty { font-size: 22px; color: #ddd; }
+
+  /* ---------- Avisos (solo con &eventos=1) ---------- */
+  .events-box { position: fixed; left: 24px; bottom: 24px; display: flex; flex-direction: column; gap: 8px; width: 340px; }
+  .event-item {
+    display: flex; align-items: center; gap: 10px; background: rgba(10, 10, 15, 0.85); border-left: 4px solid #21b2c2;
+    border-radius: 8px; padding: 8px 14px; color: #fff; font-size: 15px; font-weight: 600;
+    animation: eventIn 0.3s ease, eventOut 0.4s ease 4.6s forwards; text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  }
+  .event-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid rgba(255, 255, 255, 0.35); }
+  @keyframes eventIn { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes eventOut { from { opacity: 1; } to { opacity: 0; transform: translateX(-30px); } }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="timer" id="timer"><span class="msg">🌎 ¡Escribe tu país!</span></div>
-    <div class="col left" id="left"></div>
-    <div class="col right" id="right"></div>
-    <div class="feed" id="feed"></div>
-    <div id="pops"></div>
-    <div class="top3" id="top3"></div>
+  <div class="board">
+    <div class="countries countries-left" id="countriesLeft"></div>
+    <div class="center-info">
+      <div class="timer" id="timer">5:00</div>
+      <div class="time-added-layer" id="timeAddedLayer"></div>
+    </div>
+    <div class="countries countries-right" id="countriesRight"></div>
+  </div>
+  <div class="boost-layer" id="boostLayer"></div>
+  <div class="events-box" id="eventsBox"></div>
+  <div class="top3-overlay" id="top3Overlay">
+    <div class="top3-card">
+      <h1>🏆 TOP 3 🏆</h1>
+      <div class="top3-list" id="top3List"></div>
+    </div>
   </div>
 
 <script src="pf-config.js"></script>
 <script src="supabase.js"></script>
 <script src="pf-conexion.js"></script>
 <script>
-  // Escala opcional:  /banderas?scale=1.2
   const params = new URLSearchParams(location.search);
-  if (params.get('scale')) document.documentElement.style.setProperty('--scale', params.get('scale'));
+  if (params.get('zoom')) document.body.style.zoom = params.get('zoom');   // zoom = crece sin perder nitidez
+  const EVENTOS = params.get('eventos') === '1';
 
-  const flag = (c) => `https://flagcdn.com/w160/${String(c || '').toLowerCase()}.png`;
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const flagUrl = (c) => (c ? `https://flagcdn.com/h80/${String(c).toLowerCase()}.png` : '');
+  const $ = (id) => document.getElementById(id);
 
   let state = null;
-  let prevCoins = {};
   let remaining = 0;
+  let lastRemaining = null;
+  let top3Shown = false;
+  let top3Timer = null;
 
-  document.addEventListener('error', (e) => {
-    const img = e.target;
-    if (img && img.tagName === 'IMG') {
-      img.style.display = 'none';
-      if (img.nextElementSibling && img.nextElementSibling.classList.contains('code')) img.nextElementSibling.style.display = 'grid';
-    }
-  }, true);
-
-  function renderTimer() {
-    const t = document.getElementById('timer');
-    if (!state) return;
-    if (state.running) {
-      t.className = 'timer' + (remaining <= 30 && !state.paused ? ' low' : '');
-      t.innerHTML = `<span class="time">${state.paused ? '⏸ ' : ''}${mmss(remaining)}</span>`;
-    } else if (state.top3) {
-      t.className = 'timer';
-      t.innerHTML = `<span class="msg out-txt">🏆 ¡Fin de la ronda!</span>`;
-    } else {
-      t.className = 'timer';
-      t.innerHTML = `<span class="msg out-txt">🌎 ¡Escribe tu país en el chat!</span>`;
-    }
+  // ---------- Banderas ----------
+  // Ranking GLOBAL: se ordenan todos por puntos; la mitad de arriba va a la
+  // izquierda y el resto a la derecha (un país puede pasar de un lado al otro).
+  function renderCountries() {
+    const sorted = state.countries
+      .map((c, i) => ({ c, i }))
+      .sort((a, b) => (b.c.coins - a.c.coins) || (a.i - b.i))
+      .map(({ c }) => c);
+    const half = Math.ceil(sorted.length / 2);
+    $('countriesLeft').innerHTML = sorted.slice(0, half).map((c, i) => renderCard(c, i + 1)).join('');
+    $('countriesRight').innerHTML = sorted.slice(half).map((c, i) => renderCard(c, half + i + 1)).join('');
   }
 
-  function cardHtml(c, rank) {
-    const lider = state.leader === c.code && c.coins > 0;
+  function renderCard(c, position) {
+    let badge = '', cls = '';
+    if (position === 1 && c.points > 0) { badge = '<span class="crown">👑</span>'; cls = 'leading'; }
+    else if (position === 2 && c.points > 0) { badge = '<span class="rank-badge silver"></span>'; cls = 'silver'; }
+    else if (position === 3 && c.points > 0) { badge = '<span class="rank-badge bronze"></span>'; cls = 'bronze'; }
     return `
-      <div class="fcard" data-code="${esc(c.code)}">
-        ${lider ? '<div class="crown"><span>👑</span></div>' : ''}
-        <div class="flag">
-          <img src="${flag(c.code)}" alt=""><div class="code"><span>${esc(c.code.toUpperCase())}</span></div>
-          ${rank <= 3 ? `<div class="badge r${rank}"><b>${rank}</b></div>` : ''}
+      <div class="country-card ${cls}" title="${esc(c.name)}" data-code="${esc(c.code)}">
+        <div class="flag-wrap">
+          ${badge}
+          <div class="flag-plate">
+            <img class="flag-img" src="${flagUrl(c.code)}" alt="${esc(c.name)}"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="flag-fallback" style="display:none;">${esc(String(c.name).slice(0, 3).toUpperCase())}</div>
+          </div>
+          <div class="country-points">${c.points}</div>
         </div>
-        <div class="pts out-txt">${c.points}</div>
       </div>`;
+  }
+
+  // ---------- Reloj ----------
+  function renderTimer() {
+    const t = $('timer');
+    const secs = state && state.running ? Math.max(0, remaining) : (state ? (state.duration || 300) : 300);
+    t.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+    const on = !!(state && state.running && !state.paused);
+    t.classList.toggle('timer-danger', on && secs > 0 && secs <= 10);
+    t.classList.toggle('timer-critical', on && secs > 0 && secs <= 5);
+  }
+
+  // "+30s" si al reloj le sumaron tiempo
+  function checkTimeAdded() {
+    if (state && state.running && lastRemaining !== null) {
+      const diff = remaining - lastRemaining;
+      if (diff >= 3) spawnTimeAdded(diff);
+    }
+    lastRemaining = state && state.running ? remaining : null;
+  }
+  function spawnTimeAdded(seconds) {
+    const el = document.createElement('div');
+    el.className = 'time-added ' + (seconds > 0 ? 'positive' : 'negative');
+    el.textContent = `${seconds > 0 ? '+' : '−'}${Math.abs(seconds)}s`;
+    $('timeAddedLayer').appendChild(el);
+    setTimeout(() => el.remove(), 1400);
+  }
+
+  // ---------- Entrar a la bandera (foto de perfil o pulso) ----------
+  function spawnBoost(code, avatar) {
+    const plate = document.querySelector(`[data-code="${CSS.escape(code)}"] .flag-plate`);
+    if (!plate) return;
+    if (!avatar) return flashFlagPlate(plate);
+    const r = plate.getBoundingClientRect();
+    const img = document.createElement('img');
+    img.className = 'boost-avatar';
+    img.referrerPolicy = 'no-referrer';
+    img.src = avatar;
+    img.style.left = `${r.left + r.width / 2}px`;
+    img.style.top = `${r.top + r.height / 2}px`;
+    img.onerror = () => { img.remove(); flashFlagPlate(plate); };
+    $('boostLayer').appendChild(img);
+    setTimeout(() => img.remove(), 800);
+  }
+  function flashFlagPlate(plate) {
+    plate.classList.remove('flag-joining');
+    void plate.offsetWidth;
+    plate.classList.add('flag-joining');
+    setTimeout(() => plate.classList.remove('flag-joining'), 650);
+  }
+
+  // ---------- TOP 3 (se ve 15 segundos) ----------
+  function renderTop3() {
+    const box = $('top3Overlay');
+    if (state.running || !state.top3) {
+      box.classList.remove('show');
+      top3Shown = false;
+      clearTimeout(top3Timer);
+      return;
+    }
+    if (top3Shown) return;
+    top3Shown = true;
+    const medals = ['🥇', '🥈', '🥉'];
+    $('top3List').innerHTML = state.top3.length ? state.top3.map((c, i) => `
+      <div class="top3-row">
+        <span class="medal">${medals[i] || ''}</span>
+        <img class="top3-flag" src="${flagUrl(c.code)}" alt="" onerror="this.style.display='none';">
+        <span>${esc(c.name)}</span>
+        <span class="pts">${c.points} pts</span>
+      </div>`).join('') : '<div class="top3-empty">Nadie sumó puntos esta ronda 😅</div>';
+    box.classList.add('show');
+    clearTimeout(top3Timer);
+    top3Timer = setTimeout(() => box.classList.remove('show'), 15000);
+  }
+
+  // ---------- Avisos abajo a la izquierda (opcional) ----------
+  function addEvent(text, avatar) {
+    const box = $('eventsBox');
+    const el = document.createElement('div');
+    el.className = 'event-item';
+    el.innerHTML = `${avatar ? `<img class="event-avatar" src="${esc(avatar)}" referrerpolicy="no-referrer" onerror="this.style.display='none';">` : ''}<span>${esc(text)}</span>`;
+    box.appendChild(el);
+    while (box.children.length > 3) box.firstChild.remove();
+    setTimeout(() => el.remove(), 5000);
   }
 
   function render() {
     if (!state) return;
-    // Ordenados por puntos: el que va ganando queda arriba a la izquierda
-    const ranking = state.countries.slice().sort((a, b) => b.coins - a.coins || a.index - b.index);
-    const half = Math.ceil(ranking.length / 2);
-    document.getElementById('left').innerHTML = ranking.slice(0, half).map((c, i) => cardHtml(c, i + 1)).join('');
-    document.getElementById('right').innerHTML = ranking.slice(half).map((c, i) => cardHtml(c, half + i + 1)).join('');
-
-    // animación cuando un país suma: la bandera salta y sale "+N" grande
-    for (const c of state.countries) {
-      const antes = prevCoins[c.code];
-      if (antes !== undefined && c.coins > antes.coins) {
-        const el = document.querySelector(`.fcard[data-code="${CSS.escape(c.code)}"]`);
-        if (el) { el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 450); }
-        const mas = c.points - antes.points;
-        if (mas > 0) popPuntos(c.code, mas);
-      }
-      prevCoins[c.code] = { coins: c.coins, points: c.points };
-    }
-
-    // TOP 3
-    const box = document.getElementById('top3');
-    if (state.top3) {
-      const [a, b, c] = state.top3;
-      const pl = (x, cls, medal) => x ? `
-        <div class="pl ${cls}">
-          <div class="medal">${medal}</div>
-          <img src="${flag(x.code)}">
-          <div class="pname">${esc(x.name)}</div>
-          <div class="ppts">${x.points} pts</div>
-          ${x.mvp ? `<div class="mvp">⭐ MVP: ${esc(x.mvp)}</div>` : ''}
-          <div class="base"></div>
-        </div>` : '<div class="pl"></div>';
-      box.innerHTML = `
-        <h1>🏆 TOP 3</h1>
-        <div class="sub">Ronda ${state.round}</div>
-        ${state.top3.length ? `<div class="podium">${pl(b, 'p2', '🥈')}${pl(a, 'p1', '🥇')}${pl(c, 'p3', '🥉')}</div>`
-                            : '<div class="nobody">Nadie sumó puntos esta ronda 😅</div>'}`;
-      box.classList.add('show');
-    } else {
-      box.classList.remove('show');
-    }
+    renderCountries();
     renderTimer();
-  }
-
-  function popPuntos(code, n) {
-    const box = document.getElementById('pops');
-    const d = document.createElement('div');
-    d.className = 'pop';
-    d.innerHTML = `<img src="${flag(code)}" alt=""><span class="n out-txt">+${n}</span>`;
-    box.appendChild(d);
-    while (box.children.length > 3) box.firstElementChild.remove();
-    setTimeout(() => d.remove(), 1700);
-  }
-
-  // ---------- quién se unió: máximo 3, cada uno dura 5 segundos ----------
-  function addFeed(m) {
-    const feed = document.getElementById('feed');
-    const div = document.createElement('div');
-    div.className = 'fi';
-    // "Camila se unió a Colombia" -> nombre arriba, país abajo
-    const t = String(m.text || '');
-    const j = t.match(/^(.*) se unió a (.*)$/);
-    const g = t.match(/^(.*?) envió (.*)$/);
-    const who = j ? j[1] : g ? g[1] : '';
-    const what = j ? j[2] : g ? g[2].replace(/\s*→.*$/, '') : t;
-    const tag = j ? 'se unió' : g ? 'regaló' : '';
-    div.innerHTML =
-      (m.avatar ? `<img class="av" src="${esc(m.avatar)}" referrerpolicy="no-referrer" alt="">` : '') +
-      `<div class="tx">${who ? `<div class="who out-txt">${esc(who)} <small>${tag}</small></div>` : ''}<div class="what out-txt">${esc(what)}</div></div>` +
-      (m.code ? `<img class="fl" src="${flag(m.code)}" alt="">` : '');
-    feed.prepend(div);
-    while (feed.children.length > 3) feed.lastElementChild.remove();
-    setTimeout(() => {
-      div.classList.add('out');
-      setTimeout(() => div.remove(), 450);
-    }, 5000);
+    renderTop3();
   }
 
   // ---------- conexión con ProgramFox (tu PC o la nube) ----------
@@ -239,12 +274,15 @@
     if (m.type === 'banderas-state') {
       state = m.state;
       remaining = state.remaining;
+      checkTimeAdded();
       render();
     } else if (m.type === 'banderas-time') {
       remaining = m.remaining;
+      checkTimeAdded();
       renderTimer();
     } else if (m.type === 'banderas-feed') {
-      addFeed(m);
+      if (m.code) spawnBoost(m.code, m.avatar);
+      if (EVENTOS && m.text) addEvent(m.text, m.avatar);
     }
   }, 'banderas');
 </script>
