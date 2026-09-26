@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Ranking</title>
+<style>
+  /* Ranking del LIVE. En el enlace:
+       ?w=gifts  Top Regalos (monedas)        ?w=likes  Top Likes
+       &v=clasico | tarjetas | barras | neon | minimo    (estilo)
+       &n=5      cuántos se ven (1 a 10)       &align=right  (a la derecha)
+     Se ajusta solo al tamaño de la fuente (ej: 500 x 600). */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  body { font-family: 'Segoe UI', 'Arial Black', system-ui, sans-serif; color: #fff; }
+  .stage { width: 460px; padding: 18px 16px; transform-origin: top left; }
+  body.right .stage { margin-left: auto; transform-origin: top right; }
+
+  .title {
+    font-family: 'Arial Black', 'Segoe UI', sans-serif; font-weight: 900; font-size: 38px; line-height: 1; letter-spacing: .5px;
+    text-transform: uppercase; margin: 0 0 34px 6px; position: relative; display: inline-block;
+    background: linear-gradient(180deg, #fff7c2, #ffd23f 45%, #ff9b1a); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 3px 0 #4a1f00) drop-shadow(0 6px 8px rgba(0,0,0,.55));
+  }
+  body.right .title { display: block; text-align: right; margin-right: 6px; }
+  .list { position: relative; }
+  .row { position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 14px; transition: transform .6s cubic-bezier(.2, 1, .3, 1), opacity .4s; }
+  body.right .row { flex-direction: row-reverse; text-align: right; }
+  .row.nuevo { animation: nuevo .6s cubic-bezier(.2, 1.5, .4, 1); }
+  @keyframes nuevo { from { opacity: 0; transform: translateX(-40px) scale(.8); } }
+  .row.sube .val { animation: sube .5s ease; }
+  @keyframes sube { 40% { transform: scale(1.25); color: #fff; } }
+
+  /* avatar con anillo del color del puesto */
+  .av { position: relative; width: 74px; height: 74px; flex: none; }
+  .av img, .av .ph { position: relative; z-index: 2; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 4px solid var(--c); background: #2a2433; box-shadow: 0 4px 12px rgba(0,0,0,.5); display: grid; place-items: center; font-weight: 900; font-size: 30px; }
+  .crown { position: absolute; z-index: 4; left: 0; right: 0; top: -30px; text-align: center; font-size: 34px; filter: drop-shadow(0 3px 3px rgba(0,0,0,.6)); animation: corona 2.2s ease-in-out infinite; }
+  @keyframes corona { 50% { transform: translateY(-4px) rotate(-6deg); } }
+
+  /* ---------- FUEGO alrededor del #1 ---------- */
+  .fire { position: absolute; z-index: 1; left: 50%; top: 50%; width: 0; height: 0; filter: url(#llama); pointer-events: none; }
+  .fire .f { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+  .fire i { position: absolute; left: -11px; bottom: 28px; width: 22px; height: 40px; border-radius: 50% 50% 45% 45% / 70% 70% 30% 30%;
+    background: radial-gradient(ellipse at 50% 85%, #fff6b0 0%, #ffd23f 28%, #ff8a00 58%, rgba(255, 50, 0, 0) 78%);
+    transform-origin: 50% 100%; animation: llama 1s ease-in-out infinite; }
+  @keyframes llama { 0%, 100% { transform: scaleY(1) scaleX(1); opacity: .95; } 35% { transform: scaleY(1.35) scaleX(.85); opacity: 1; } 70% { transform: scaleY(.85) scaleX(1.1); opacity: .85; } }
+  .fire .base { position: absolute; left: -50px; top: -50px; width: 100px; height: 100px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 160, 0, 0) 58%, rgba(255, 140, 0, .95) 66%, rgba(255, 70, 0, .45) 76%, transparent 86%); animation: aro 1.4s ease-in-out infinite; }
+  @keyframes aro { 50% { transform: scale(1.07); opacity: .8; } }
+  .v-minimo .fire { transform: scale(.66); }
+
+  .txt { min-width: 0; flex: 1; }
+  .name { font-size: 32px; font-weight: 900; line-height: 1.08; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--c);
+    text-shadow: -2px -2px 0 #140a00, 2px -2px 0 #140a00, -2px 2px 0 #140a00, 2px 2px 0 #140a00, 0 4px 8px rgba(0,0,0,.6); }
+  .val { display: inline-flex; align-items: center; gap: 6px; font-size: 26px; font-weight: 900; color: var(--c2);
+    text-shadow: -2px -2px 0 #140a00, 2px -2px 0 #140a00, -2px 2px 0 #140a00, 2px 2px 0 #140a00; }
+  body.right .val { flex-direction: row-reverse; }
+  .coin { width: 24px; height: 24px; border-radius: 50%; flex: none; background: radial-gradient(circle at 35% 30%, #fff3b0, #ffc928 45%, #e08a00); box-shadow: inset 0 -2px 0 #b86a00, 0 0 0 2px #140a00; position: relative; }
+  .coin::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; border: 2px solid rgba(140, 70, 0, .75); }
+  .heart { font-size: 22px; filter: drop-shadow(0 0 0 #000) drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
+
+  /* colores de puesto */
+  .p1 { --c: #ffd23f; --c2: #ffd23f; }
+  .p2 { --c: #e8eef6; --c2: #dfe7f1; }
+  .p3 { --c: #f0a868; --c2: #f0a868; }
+  .px { --c: #ffffff; --c2: #ffe9a8; }
+  .p1 .name { background: linear-gradient(180deg, #fff7c2, #ffd23f 50%, #ff9b1a); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(0 2px 0 #3a1800) drop-shadow(0 4px 6px rgba(0,0,0,.6)); }
+
+  /* ---------- estilos ---------- */
+  /* Tarjetas */
+  .v-tarjetas .row { background: linear-gradient(90deg, rgba(20,16,30,.88), rgba(20,16,30,.62)); border: 2px solid rgba(255,255,255,.1); border-radius: 22px; padding: 8px 16px 8px 8px; }
+  .v-tarjetas .row.p1 { border-color: rgba(255,210,63,.7); box-shadow: 0 0 18px rgba(255,170,40,.35); }
+  body.right.v-tarjetas .row { padding: 8px 8px 8px 16px; }
+  /* Barras */
+  .v-barras .row::before { content: ''; position: absolute; z-index: 0; left: 36px; top: 12px; bottom: 12px; width: calc(var(--pct) * 1%); max-width: calc(100% - 36px); border-radius: 0 20px 20px 0;
+    background: linear-gradient(90deg, rgba(0,0,0,.2), color-mix(in srgb, var(--c) 55%, transparent)); transition: width .6s; }
+  body.right.v-barras .row::before { left: auto; right: 36px; border-radius: 20px 0 0 20px; background: linear-gradient(270deg, rgba(0,0,0,.2), color-mix(in srgb, var(--c) 55%, transparent)); }
+  .v-barras .txt, .v-barras .av { position: relative; z-index: 1; }
+  /* Neón */
+  .v-neon .title { background: none; color: #7ff6ff; filter: none; text-shadow: 0 0 6px #19e6ff, 0 0 18px #19e6ff, 0 0 36px #0aa; -webkit-text-fill-color: #eaffff; }
+  .v-neon .av img, .v-neon .av .ph { border-color: #19e6ff; box-shadow: 0 0 12px #19e6ff, 0 0 26px rgba(25, 230, 255, .5); }
+  .v-neon .p1 .av img, .v-neon .p1 .av .ph { border-color: #ff3dbb; box-shadow: 0 0 12px #ff3dbb, 0 0 28px rgba(255, 61, 187, .6); }
+  .v-neon .name, .v-neon .p1 .name { background: none; filter: none; color: #fff; -webkit-text-fill-color: #fff; text-shadow: 0 0 6px #19e6ff, 0 0 14px #19e6ff; }
+  .v-neon .p1 .name { text-shadow: 0 0 6px #ff3dbb, 0 0 16px #ff3dbb; }
+  .v-neon .val { color: #b8fbff; text-shadow: 0 0 8px #19e6ff; }
+  /* Mínimo */
+  .v-minimo .title { font-size: 26px; }
+  .v-minimo .av { width: 48px; height: 48px; }
+  .v-minimo .av img, .v-minimo .av .ph { border-width: 3px; font-size: 20px; }
+  .v-minimo .name { font-size: 24px; }
+  .v-minimo .val { font-size: 20px; }
+  .v-minimo .crown { top: -22px; font-size: 24px; }
+  .empty { font-size: 22px; font-weight: 800; opacity: .75; margin-left: 8px; text-shadow: 0 2px 6px #000; }
+  body.right .empty { text-align: right; margin-right: 8px; }
+</style>
+</head>
+<body>
+<!-- Filtro que hace "ondular" las llamas (movimiento de fuego) -->
+<svg width="0" height="0" style="position:absolute">
+  <filter id="llama" x="-30%" y="-30%" width="160%" height="160%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.035 0.09" numOctaves="2" seed="3" result="ruido">
+      <animate attributeName="baseFrequency" dur="2.2s" values="0.035 0.09;0.04 0.13;0.035 0.09" repeatCount="indefinite"/>
+    </feTurbulence>
+    <feOffset in="ruido" dy="0" result="sube">
+      <animate attributeName="dy" dur="1.2s" values="0;-40" repeatCount="indefinite"/>
+    </feOffset>
+    <feDisplacementMap in="SourceGraphic" in2="sube" scale="18" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+<div class="stage" id="stage"><div class="title" id="title"></div><div class="list" id="list"></div></div>
+
+<script src="pf-config.js"></script>
+<script src="supabase.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const QUE = q.get('w') === 'likes' ? 'likes' : 'gifts';
+  const ESTILO = ['clasico', 'tarjetas', 'barras', 'neon', 'minimo'].includes(q.get('v')) ? q.get('v') : 'clasico';
+  const N = Math.min(10, Math.max(1, Number(q.get('n')) || 5));
+  const DERECHA = q.get('align') === 'right';
+  document.body.classList.add('v-' + ESTILO);
+  if (DERECHA) document.body.classList.add('right');
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const num = (n) => Number(n || 0).toLocaleString('es-CO');
+  const stage = document.getElementById('stage');
+  const list = document.getElementById('list');
+  document.getElementById('title').textContent = QUE === 'likes' ? 'Top Likes' : 'Top Regalos';
+
+  const ALTO = ESTILO === 'minimo' ? 62 : ESTILO === 'tarjetas' || ESTILO === 'barras' ? 96 : 90;
+
+  // se ajusta al tamaño de la fuente sin perder nitidez
+  function ajustar() {
+    const alto = 90 + N * ALTO;
+    const z = Math.min(innerWidth / 460, innerHeight / alto) * (Number(q.get('zoom')) || 1);
+    stage.style.zoom = z > 0 ? z : 1;
+  }
+  addEventListener('resize', ajustar);
+  ajustar();
+
+  const filas = new Map();   // id -> { el, value }
+
+  function llamas() {
+    // llamas alrededor del círculo (más grandes arriba, más pequeñas a los lados)
+    let h = '<div class="fire"><div class="base"></div>';
+    const angulos = [-110, -80, -55, -30, -10, 10, 30, 55, 80, 110, 145, -145];
+    angulos.forEach((a, k) => {
+      const s = a === -10 || a === 10 ? 1.35 : Math.abs(a) <= 55 ? 1.12 : Math.abs(a) <= 110 ? .85 : .6;
+      h += `<span class="f" style="transform:rotate(${a}deg)"><i style="height:${Math.round(40 * s)}px;width:${Math.round(22 * s)}px;left:${-Math.round(11 * s)}px;animation-delay:${(k * 0.13).toFixed(2)}s;animation-duration:${(0.8 + (k % 3) * 0.18).toFixed(2)}s"></i></span>`;
+    });
+    return h + '</div>';
+  }
+
+  function contenido(u, i, max) {
+    const p = i === 0 ? 'p1' : i === 1 ? 'p2' : i === 2 ? 'p3' : 'px';
+    const ic = QUE === 'likes' ? '<span class="heart">❤️</span>' : '<span class="coin"></span>';
+    const foto = u.avatar
+      ? `<img src="${esc(u.avatar)}" referrerpolicy="no-referrer" alt="" onerror="this.outerHTML='<div class=&quot;ph&quot;>${esc(String(u.name || '?').charAt(0).toUpperCase())}</div>'">`
+      : `<div class="ph">${esc(String(u.name || '?').charAt(0).toUpperCase())}</div>`;
+    return {
+      cls: p,
+      html: `<div class="av">${i === 0 ? llamas() + '<div class="crown">👑</div>' : ''}${foto}</div>
+             <div class="txt"><div class="name">${esc(u.name)}</div><div class="val">${num(u.value)}${ic}</div></div>`,
+      pct: max ? Math.max(8, Math.round((u.value / max) * 100)) : 0
+    };
+  }
+
+  function pintar(arr) {
+    arr = (arr || []).slice(0, N);
+    const vistos = new Set();
+    const max = arr.length ? arr[0].value : 0;
+    arr.forEach((u, i) => {
+      vistos.add(u.id);
+      const c = contenido(u, i, max);
+      let f = filas.get(u.id);
+      if (!f) {
+        const el = document.createElement('div');
+        el.className = 'row nuevo';
+        el.style.transform = `translateY(${i * ALTO}px)`;
+        list.appendChild(el);
+        f = { el, value: u.value, pos: i, key: '' };
+        filas.set(u.id, f);
+        setTimeout(() => el.classList.remove('nuevo'), 700);
+      }
+      const key = c.cls + '|' + u.name + '|' + u.avatar + '|' + u.value;
+      if (key !== f.key) {
+        // solo se vuelve a dibujar si cambió algo (así el fuego no se reinicia)
+        const primeroAntes = f.el.classList.contains('p1');
+        if (!(primeroAntes && c.cls === 'p1' && f.el.querySelector('.fire'))) f.el.innerHTML = c.html;
+        else { f.el.querySelector('.name').textContent = u.name; f.el.querySelector('.val').innerHTML = contenido(u, 0, max).html.match(/<div class="val">([\s\S]*?)<\/div>/)[1]; }
+        f.key = key;
+      }
+      f.el.className = 'row ' + c.cls + (f.el.classList.contains('nuevo') ? ' nuevo' : '');
+      f.el.style.setProperty('--pct', c.pct);
+      if (u.value > f.value) { f.el.classList.remove('sube'); void f.el.offsetWidth; f.el.classList.add('sube'); }
+      f.value = u.value;
+      f.el.style.transform = `translateY(${i * ALTO}px)`;
+      f.el.style.opacity = 1;
+    });
+    for (const [id, f] of filas) {
+      if (!vistos.has(id)) { f.el.style.opacity = 0; setTimeout(() => f.el.remove(), 400); filas.delete(id); }
+    }
+    list.style.height = Math.max(1, arr.length) * ALTO + 'px';
+    let vacio = document.getElementById('vacio');
+    if (!arr.length) {
+      if (!vacio) { vacio = document.createElement('div'); vacio.id = 'vacio'; vacio.className = 'empty'; list.appendChild(vacio); }
+      vacio.textContent = QUE === 'likes' ? 'Esperando likes… ❤️' : 'Esperando regalos… 🎁';
+    } else if (vacio) vacio.remove();
+  }
+
+  if (q.get('preview') === '1') {
+    let demo = [
+      { id: 'a', name: 'Victor', value: 201 }, { id: 'b', name: 'Reptil MVP', value: 120 },
+      { id: 'c', name: 'Melody', value: 45 }, { id: 'd', name: 'Thiago', value: 12 }, { id: 'e', name: 'Gabone', value: 3 }
+    ];
+    pintar(demo);
+    setInterval(() => {
+      const u = demo[Math.floor(Math.random() * demo.length)];
+      u.value += Math.floor(Math.random() * 90) + 1;
+      demo = demo.slice().sort((a, b) => b.value - a.value);
+      pintar(demo);
+    }, 1800);
+  } else {
+    pfConnect((m) => { if (m.type === 'gift-stats' && m.stats.rank) pintar(m.stats.rank[QUE]); }, 'ranking');
+  }
+</script>
+</body>
+</html>
