@@ -228,11 +228,34 @@
         ctx.fillStyle = '#3d0f26'; ctx.beginPath(); ctx.roundRect(198, C[1] - RY - 3, 54, 6, 3); ctx.fill();
         // oreja de adelante
         oreja(352, 182, .45, false);
-        // hocico
-        ctx.fillStyle = piel(390, 250, 440, 320); ctx.fill(elipse(C[0] + RX - 8, C[1] + 8, 30, 38));
-        ctx.fillStyle = '#ff9cc7'; ctx.fill(elipse(C[0] + RX - 4, C[1] + 8, 22, 30));
-        ctx.fillStyle = '#b8386f'; ctx.fill(elipse(C[0] + RX - 6, C[1] - 4, 5, 8)); ctx.fill(elipse(C[0] + RX - 6, C[1] + 20, 5, 8));
-        brillo(C[0] + RX - 14, C[1] - 14, 7, 10, .6);
+        // hocico (sale del cuerpo, con volumen)
+        {
+          const hx = C[0] + RX - 2, hy = C[1] + 10;
+          ctx.save();
+          ctx.shadowColor = 'rgba(120, 20, 60, .35)'; ctx.shadowBlur = 8; ctx.shadowOffsetX = 2;
+          // lado del hocico (cilindro corto)
+          const lado = ctx.createLinearGradient(hx - 14, 0, hx + 16, 0);
+          lado.addColorStop(0, '#e2548f'); lado.addColorStop(1, '#f77fb3');
+          ctx.fillStyle = lado;
+          ctx.beginPath();
+          ctx.ellipse(hx - 6, hy, 15, 31, 0, Math.PI / 2, Math.PI * 1.5);
+          ctx.lineTo(hx + 12, hy - 29);
+          ctx.ellipse(hx + 12, hy, 15, 29, 0, -Math.PI / 2, Math.PI / 2);
+          ctx.closePath(); ctx.fill();
+          ctx.restore();
+          // cara del hocico
+          const cara = ctx.createRadialGradient(hx + 8, hy - 10, 3, hx + 12, hy, 30);
+          cara.addColorStop(0, '#ffd3e6'); cara.addColorStop(.6, '#ffa2c9'); cara.addColorStop(1, '#f07aae');
+          ctx.fillStyle = cara; ctx.fill(elipse(hx + 12, hy, 15, 29));
+          ctx.lineWidth = 2; ctx.strokeStyle = '#d9578f'; ctx.stroke(elipse(hx + 12, hy, 15, 29));
+          // fosas nasales
+          for (const dy of [-11, 11]) {
+            const f = ctx.createLinearGradient(0, hy + dy - 8, 0, hy + dy + 8);
+            f.addColorStop(0, '#6e1238'); f.addColorStop(1, '#b43a70');
+            ctx.fillStyle = f; ctx.fill(elipse(hx + 13, hy + dy, 4.5, 7.5));
+          }
+          brillo(hx + 8, hy - 18, 6, 5, .8);
+        }
         // ojo y cachete
         ctx.fillStyle = '#2b0f1d'; ctx.fill(elipse(C[0] + 108, C[1] - 44, 9, 12));
         ctx.fillStyle = '#fff'; ctx.fill(elipse(C[0] + 111, C[1] - 48, 3, 4));
@@ -375,7 +398,13 @@
     const im = imgs[url];
     return im.complete && im.naturalWidth ? im : null;
   }
-  const radio = (coins) => Math.max(12, Math.min(34, 12 + Math.log10(Math.max(1, coins)) * 5.2));
+  const radioBase = (coins) => Math.max(12, Math.min(34, 12 + Math.log10(Math.max(1, coins)) * 5.2));
+  // Cuando hay muchos regalos, los pequeños se van haciendo más pequeños (caben más, como un monedero lleno)
+  function escala() {
+    const n = monedas.filter(m => m.dentro).length;
+    return Math.max(0.72, 1 - Math.max(0, n - 30) * 0.003);
+  }
+  const radio = (coins) => { const b = radioBase(coins); return coins >= 500 ? b * Math.max(0.8, escala()) : b * escala(); };
 
   let monedas = [];
   const MAX = Number(q.get('max')) || 320;
@@ -455,8 +484,10 @@
     if (ny < -0.2) { const d = (m.x < CX ? -1 : 1) * 0.12; m.x += d; m.px += d; }
   }
 
+  // ¿todavía cabe? Solo se riega cuando la montaña de adentro ya llegó hasta la entrada
   function libre(yo) {
-    return !monedas.some(o => o !== yo && !o.cae && o.dentro && Math.abs(o.y - o.py) < 0.6 && (o.x - yo.x) ** 2 + (o.y - yo.y) ** 2 < ((o.r + yo.r) * 1.1) ** 2);
+    return !monedas.some(o => o !== yo && !o.cae && o.dentro && o.duerme &&
+      o.y - o.r < ALC.entra.y + 4 && Math.abs(o.x - yo.x) < o.r + yo.r + 30);
   }
 
   function despertar() { for (const m of monedas) { m.duerme = false; m.quieto = 0; } }
@@ -549,8 +580,19 @@
     ctx.restore();
   }
 
+  let cuentaEsc = 0;
   function cuadro() {
     paso();
+    // cada medio segundo, los que ya están adentro se van ajustando al tamaño nuevo
+    if (++cuentaEsc % 30 === 0) {
+      let cambio = false;
+      for (const m of monedas) {
+        if (!m.dentro || m.cae) continue;
+        const meta = radio(m.coins);
+        if (m.r > meta * 1.03) { m.r = Math.max(meta, m.r * 0.97); cambio = true; }
+      }
+      if (cambio) despertar();
+    }
     // los que se salen de la pantalla por los lados, se van
     if (monedas.some(m => !m.dentro && (m.x < -60 || m.x > W + 60))) { monedas = monedas.filter(m => m.dentro || (m.x >= -60 && m.x <= W + 60)); despertar(); }
     giro += 0.004;
