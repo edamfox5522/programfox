@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Destacados</title>
+<style>
+  /* Carteles destacados. En el enlace:
+       ?w=gifts   Regalos destacados ("Usuario envió Rose")
+       ?w=level   Subida de nivel en el Club de Fans
+       ?w=combo   los dos en la misma fuente, turnándose
+     Fuente recomendada: 900 x 160. El mínimo de monedas y los segundos se eligen en ProgramFox. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  body { font-family: 'Segoe UI', 'Arial Black', system-ui, sans-serif; color: #fff; display: grid; place-items: center; }
+  .stage { width: 900px; height: 160px; position: relative; display: grid; place-items: center; }
+
+  .pill { position: absolute; display: flex; align-items: center; gap: 14px; height: 88px; padding: 0 22px 0 12px; border-radius: 99px;
+    border: 4px solid var(--b); background: linear-gradient(180deg, var(--a1), var(--a2)); overflow: hidden; white-space: nowrap;
+    box-shadow: 0 0 0 3px rgba(0,0,0,.35), 0 10px 26px rgba(0,0,0,.45), 0 0 26px var(--glow); }
+  .pill::before { content: ''; position: absolute; inset: 0; border-radius: 99px; box-shadow: inset 0 3px 0 rgba(255,255,255,.35), inset 0 -6px 12px rgba(0,0,0,.25); pointer-events: none; }
+  .pill::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%);
+    transform: translateX(-100%); animation: brillo 2.8s ease-in-out .5s infinite; pointer-events: none; }
+  @keyframes brillo { 55%, 100% { transform: translateX(100%); } }
+  .pill.enter { animation: entra .75s cubic-bezier(.2, 1.5, .4, 1); }
+  .pill.leave { animation: sale .45s ease-in forwards; }
+  @keyframes entra { 0% { opacity: 0; transform: translateY(-60px) scale(.6); } 100% { opacity: 1; transform: none; } }
+  @keyframes sale { to { opacity: 0; transform: translateY(30px) scale(.85); } }
+
+  .gift { --a1: #d23456; --a2: #9c1438; --b: #ff7f9b; --glow: rgba(255, 60, 110, .5); }
+  .level { --a1: #f0b23a; --a2: #b87812; --b: #ffe08a; --glow: rgba(255, 190, 60, .55); padding-left: 20px; }
+
+  .av { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex: none; border: 3px solid rgba(255,255,255,.85); background: #3a3a48; }
+  .av.none { display: grid; place-items: center; font-size: 34px; }
+  .txt { font-weight: 900; font-size: 36px; letter-spacing: .3px; position: relative; z-index: 1;
+    text-shadow: -2px -2px 0 rgba(60,0,10,.7), 2px -2px 0 rgba(60,0,10,.7), -2px 2px 0 rgba(60,0,10,.7), 2px 2px 0 rgba(60,0,10,.7), 0 4px 8px rgba(0,0,0,.4); }
+  .level .txt { text-shadow: -2px -2px 0 rgba(90,50,0,.7), 2px -2px 0 rgba(90,50,0,.7), -2px 2px 0 rgba(90,50,0,.7), 2px 2px 0 rgba(90,50,0,.7), 0 4px 8px rgba(0,0,0,.35); }
+  .txt b { color: #fff; }
+  .gimg { width: 66px; height: 66px; object-fit: contain; flex: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,.45)); animation: bota 1.2s ease-in-out infinite; }
+  .gimg.emoji { font-size: 50px; display: grid; place-items: center; }
+  @keyframes bota { 50% { transform: translateY(-5px) rotate(-6deg) scale(1.06); } }
+  .x { font-size: 30px; color: #ffe27a; }
+  .up { font-size: 40px; flex: none; animation: sube 1s ease-in-out infinite; }
+  @keyframes sube { 50% { transform: translateY(-6px); } }
+  .badge { position: relative; width: 70px; height: 60px; flex: none; display: grid; place-items: center; animation: bota 1.4s ease-in-out infinite; }
+  .badge svg { position: absolute; inset: 0; }
+  .badge span { position: relative; font-weight: 900; font-size: 20px; color: #fff; text-shadow: 0 2px 0 #7a0f55; margin-top: -2px; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage"></div>
+
+<script src="pf-config.js"></script>
+<script src="supabase.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const MODO = ['gifts', 'level', 'combo'].includes(q.get('w')) ? q.get('w') : 'gifts';
+  const DEMO = q.get('demo') === '1';
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const stage = document.getElementById('stage');
+
+  function ajustar() {
+    const z = Math.min(innerWidth / 900, innerHeight / 160) * (Number(q.get('zoom')) || 1);
+    stage.style.zoom = z > 0 ? z : 1;
+  }
+  addEventListener('resize', ajustar);
+  ajustar();
+
+  let CFG = { destMin: 1, destSecs: 6 };
+  let muestras = [];
+  const cola = [];
+  let ocupado = false;
+
+  const corazon = (n) => `<div class="badge"><svg viewBox="0 0 70 60"><defs><linearGradient id="h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9ad5"/><stop offset="1" stop-color="#d2308a"/></linearGradient></defs>
+    <path d="M35 56 C10 40 3 28 3 18 A14 14 0 0 1 35 12 A14 14 0 0 1 67 18 C67 28 60 40 35 56 Z" fill="url(#h)" stroke="#fff" stroke-width="3"/></svg><span>${esc(n)}</span></div>`;
+  const avatar = (u) => u && u.avatar
+    ? `<img class="av" src="${esc(u.avatar)}" referrerpolicy="no-referrer" alt="" onerror="this.outerHTML='<div class=&quot;av none&quot;>👤</div>'">`
+    : `<div class="av none">👤</div>`;
+  const nombre = (u) => esc((u && (u.nickname || u.uniqueId)) || 'Usuario');
+
+  function html(it) {
+    if (it.kind === 'level') {
+      return `<div class="pill level"><span class="up">⬆️</span><span class="txt"><b>${nombre(it.user)}</b> alcanzó el nivel de miembro ${esc(it.level)}</span>${corazon(it.level)}</div>`;
+    }
+    const g = it.gift || {};
+    const img = g.image
+      ? `<img class="gimg" src="${esc(g.image)}" referrerpolicy="no-referrer" alt="" onerror="this.outerHTML='<div class=&quot;gimg emoji&quot;>🎁</div>'">`
+      : `<div class="gimg emoji">🎁</div>`;
+    const x = Number(g.count) > 1 ? ` <span class="x">x${esc(g.count)}</span>` : '';
+    return `<div class="pill gift">${avatar(it.user)}<span class="txt"><b>${nombre(it.user)}</b> envió ${esc(g.name || 'un regalo')}${x}</span>${img}</div>`;
+  }
+
+  function mostrar(it) {
+    const viejo = stage.querySelector('.pill');
+    if (viejo) { viejo.classList.remove('enter'); viejo.classList.add('leave'); setTimeout(() => viejo.remove(), 450); }
+    const d = document.createElement('div');
+    d.innerHTML = html(it);
+    const p = d.firstElementChild;
+    p.classList.add('enter');
+    stage.appendChild(p);
+    // si el texto es muy largo, se achica para que quepa
+    requestAnimationFrame(() => { const w = p.offsetWidth; if (w > 880) p.style.zoom = 880 / w; });
+    return p;
+  }
+
+  function siguiente() {
+    if (!cola.length) {
+      ocupado = false;
+      if (DEMO) { setTimeout(demo, 600); return; }
+      const p = stage.querySelector('.pill');
+      if (p) { p.classList.add('leave'); setTimeout(() => p.remove(), 450); }
+      return;
+    }
+    ocupado = true;
+    mostrar(cola.shift());
+    setTimeout(siguiente, (Number(CFG.destSecs) || 6) * 1000);
+  }
+  function agregar(it) {
+    if (MODO === 'gifts' && it.kind !== 'gift') return;
+    if (MODO === 'level' && it.kind !== 'level') return;
+    cola.push(it);
+    if (cola.length > 30) cola.shift();
+    if (!ocupado) siguiente();
+  }
+
+  // Vista previa: un ejemplo
+  let demoN = 0;
+  function demo() {
+    if (ocupado || !DEMO) return;
+    const toca = MODO === 'level' || (MODO === 'combo' && demoN++ % 2 === 1);
+    const g = muestras[0] || { name: 'Rose', image: '' };
+    agregar(toca ? { kind: 'level', level: 50, user: { nickname: 'Usuario' } } : { kind: 'gift', user: { nickname: 'Usuario' }, gift: { name: g.name, image: g.image, count: 1 } });
+  }
+
+  pfConnect((m) => {
+    if (m.type === 'gift-stats' && m.stats) {
+      if (m.stats.cfg) CFG = m.stats.cfg;
+      if (m.stats.sampleImgs) {
+        const rosa = m.stats.sampleImgs.find(x => /^rose$/i.test(x.name));
+        muestras = rosa ? [rosa] : m.stats.sampleImgs;
+      }
+      if (DEMO && !ocupado) demo();
+    }
+    if (m.type === 'chat-event' && m.event && m.event.type === 'gift' && m.event.gift) {
+      const g = m.event.gift;
+      if ((Number(g.coins) || 0) * (Number(g.count) || 1) >= (Number(CFG.destMin) || 1)) agregar({ kind: 'gift', user: m.event.user, gift: g });
+    }
+    if (m.type === 'fan-level') agregar({ kind: 'level', level: m.level, user: m.user });
+  }, 'destacados');
+  if (DEMO) setTimeout(demo, 800);
+</script>
+</body>
+</html>
