@@ -53,7 +53,6 @@
     text-shadow: -2px -2px 0 #140a00, 2px -2px 0 #140a00, -2px 2px 0 #140a00, 2px 2px 0 #140a00, 0 4px 8px rgba(0,0,0,.6); }
   .val { display: inline-flex; align-items: center; gap: 6px; font-size: 26px; font-weight: 900; color: var(--c2);
     text-shadow: -2px -2px 0 #140a00, 2px -2px 0 #140a00, -2px 2px 0 #140a00, 2px 2px 0 #140a00; }
-  body.right .val { flex-direction: row-reverse; }
   .coin { width: 24px; height: 24px; border-radius: 50%; flex: none; background: radial-gradient(circle at 35% 30%, #fff3b0, #ffc928 45%, #e08a00); box-shadow: inset 0 -2px 0 #b86a00, 0 0 0 2px #140a00; position: relative; }
   .coin::after { content: ''; position: absolute; inset: 6px; border-radius: 50%; border: 2px solid rgba(140, 70, 0, .75); }
   .heart { font-size: 22px; filter: drop-shadow(0 0 0 #000) drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
@@ -165,6 +164,8 @@
 
   function pintar(arr) {
     arr = (arr || []).slice(0, N);
+    // Puestos vacíos: "Usuario 1", "Usuario 2"… con 0, hasta que llegue gente real
+    for (let i = arr.length; i < N; i++) arr.push({ id: 'ph' + i, name: 'Usuario ' + (i + 1), value: 0, avatar: '' });
     const vistos = new Set();
     const max = arr.length ? arr[0].value : 0;
     arr.forEach((u, i) => {
@@ -199,11 +200,6 @@
       if (!vistos.has(id)) { f.el.style.opacity = 0; setTimeout(() => f.el.remove(), 400); filas.delete(id); }
     }
     list.style.height = Math.max(1, arr.length) * ALTO + 'px';
-    let vacio = document.getElementById('vacio');
-    if (!arr.length) {
-      if (!vacio) { vacio = document.createElement('div'); vacio.id = 'vacio'; vacio.className = 'empty'; list.appendChild(vacio); }
-      vacio.textContent = QUE === 'likes' ? 'Esperando likes… ❤️' : 'Esperando regalos… 🎁';
-    } else if (vacio) vacio.remove();
   }
 
   if (q.get('preview') === '1') {
@@ -219,6 +215,7 @@
       pintar(demo);
     }, 1800);
   } else {
+    pintar([]);
     pfConnect((m) => { if (m.type === 'gift-stats' && m.stats.rank) pintar(m.stats.rank[QUE]); }, 'ranking');
   }
 </script>
