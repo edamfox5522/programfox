@@ -102,6 +102,10 @@
   const imgGift = (g, avatar) => g && g.image
     ? `<img class="gift" src="${esc(g.image)}" referrerpolicy="no-referrer" alt="" onerror="this.outerHTML='<div class=&quot;gift emoji&quot;>🎁</div>'">`
     : avatar ? `<img class="gift av" src="${esc(avatar)}" referrerpolicy="no-referrer" alt="">` : `<div class="gift emoji">🎁</div>`;
+  // Mientras no hay récord: un regalo de tu biblioteca, un poco transparente
+  const muestra = (img, emoji) => img
+    ? `<img class="gift" style="opacity:.55" src="${esc(img)}" referrerpolicy="no-referrer" alt="" onerror="this.outerHTML='<div class=&quot;gift emoji&quot;>${emoji}</div>'">`
+    : `<div class="gift emoji" style="opacity:.5">${emoji}</div>`;
   const hero = (inner) => `<div class="hero"><div class="rays"></div><div class="glow"></div>${inner}</div>`;
   const titulo = (t) => `<div class="title" data-t="${esc(t)}">${esc(t)}</div>`;
 
@@ -109,13 +113,13 @@
     if (!S) return '';
     if (w === 'top') {
       const t = S.top;
-      if (!t) return titulo('Mejor regalo') + hero('<div class="gift emoji" style="opacity:.5">🎁</div>') + '<div class="empty">Esperando regalos…</div>';
+      if (!t) return titulo('Mejor regalo') + hero(muestra(S.sample && S.sample.top, '🎁')) + '<div class="empty">Esperando regalos…</div>';
       return titulo('Mejor regalo') + hero(imgGift(t.gift, t.avatar)) +
         `<div class="name">${esc(t.name)}</div><div class="value">${num(t.value)}<span class="coin"></span></div>`;
     }
     if (w === 'streak') {
       const t = S.streak;
-      if (!t) return titulo('Mejor racha') + hero('<div class="gift emoji" style="opacity:.5">🔥</div>') + '<div class="empty">Esperando un combo…</div>';
+      if (!t) return titulo('Mejor racha') + hero(muestra(S.sample && S.sample.streak, '🔥')) + '<div class="empty">Esperando un combo…</div>';
       return titulo('Mejor racha') + hero(imgGift(t.gift, t.avatar)) +
         `<div class="name">${esc(t.name)}</div><div class="big">x${num(t.count)}</div>`;
     }
