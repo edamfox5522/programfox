@@ -429,13 +429,7 @@
     monedas.push({ x, y, px: x, py: y - 3, r, img, coins, rot: (Math.random() - .5) * .6, cae: true, dentro: true });
     // afuera caben unos cuantos; los más viejos se van
     const fuera = monedas.filter(m => !m.dentro && !m.cae);
-    if (fuera.length > MAX_FUERA) { monedas.splice(monedas.indexOf(fuera[0]), 1); despertar(); }
-    if (monedas.length > MAX) {
-      // se quitan primero los más viejos de afuera
-      const i = monedas.findIndex(m => !m.dentro && !m.cae);
-      monedas.splice(i >= 0 ? i : 0, 1);
-      despertar();
-    }
+    if (fuera.length > MAX_FUERA) { monedas.splice(monedas.indexOf(fuera[0]), 1); despertar(false); }
     guardarLuego();
   }
 
@@ -484,13 +478,18 @@
     if (ny < -0.2) { const d = (m.x < CX ? -1 : 1) * 0.12; m.x += d; m.px += d; }
   }
 
-  // ¿todavía cabe? Solo se riega cuando la montaña de adentro ya llegó hasta la entrada
+  // ¿todavía cabe? Se mide cuánto espacio ocupan los regalos de adentro (como un monedero de verdad)
+  const AREA = Math.abs(POLY.reduce((a, p, i) => { const q2 = POLY[(i + 1) % POLY.length]; return a + p[0] * q2[1] - q2[0] * p[1]; }, 0)) / 2;
   function libre(yo) {
+    let ocupado = 0;
+    for (const o of monedas) if (o !== yo && o.dentro) ocupado += Math.PI * o.r * o.r;
+    if (ocupado + Math.PI * yo.r * yo.r > AREA * 0.8) return false;
+    // o si la montaña ya llegó hasta la entrada
     return !monedas.some(o => o !== yo && !o.cae && o.dentro && o.duerme &&
       o.y - o.r < ALC.entra.y + 4 && Math.abs(o.x - yo.x) < o.r + yo.r + 30);
   }
 
-  function despertar() { for (const m of monedas) { m.duerme = false; m.quieto = 0; } }
+  function despertar(todos = true) { for (const m of monedas) if (todos || !m.dentro) { m.duerme = false; m.quieto = 0; } }
 
   function paso() {
     const G = 0.42;
@@ -549,7 +548,8 @@
       if (m.cae || m.duerme) continue;
       // gira solo según lo que de verdad rodó de lado (como un objeto)
       const rodo = m.x - (m.x0 ?? m.x);
-      m.rot += Math.max(-0.07, Math.min(0.07, rodo / m.r * 0.5));
+      m.vs = (m.vs || 0) * 0.8 + rodo * 0.2;          // promedio: el temblor no cuenta como rodar
+      if (Math.abs(m.vs) > 0.12) m.rot += Math.max(-0.07, Math.min(0.07, m.vs / m.r * 0.5));
       const v = Math.abs(m.x - m.px) + Math.abs(m.y - m.py);
       m.quieto = v < 0.6 ? (m.quieto || 0) + 1 : 0;
       if (m.quieto > 45) { m.duerme = true; m.px = m.x; m.py = m.y; }
@@ -583,18 +583,9 @@
   let cuentaEsc = 0;
   function cuadro() {
     paso();
-    // cada medio segundo, los que ya están adentro se van ajustando al tamaño nuevo
-    if (++cuentaEsc % 30 === 0) {
-      let cambio = false;
-      for (const m of monedas) {
-        if (!m.dentro || m.cae) continue;
-        const meta = radio(m.coins);
-        if (m.r > meta * 1.03) { m.r = Math.max(meta, m.r * 0.97); cambio = true; }
-      }
-      if (cambio) despertar();
-    }
+
     // los que se salen de la pantalla por los lados, se van
-    if (monedas.some(m => !m.dentro && (m.x < -60 || m.x > W + 60))) { monedas = monedas.filter(m => m.dentro || (m.x >= -60 && m.x <= W + 60)); despertar(); }
+    if (monedas.some(m => !m.dentro && (m.x < -60 || m.x > W + 60))) { monedas = monedas.filter(m => m.dentro || (m.x >= -60 && m.x <= W + 60)); despertar(false); }
     giro += 0.004;
     ctx.clearRect(0, 0, W, H);
     ALC.atras();
