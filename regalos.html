@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Regalos</title>
+<style>
+  /* Overlays de regalos. En el enlace:
+       ?w=top     Mejor Regalo       ?w=streak  Mejor Racha
+       ?w=goal    Meta de Regalo     ?w=combo   los 3 turnándose (&t=8 segundos)
+     Se ajusta solo al tamaño de la fuente (fuente cuadrada, ej: 500 x 500). */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  body { font-family: 'Segoe UI', 'Arial Black', system-ui, sans-serif; color: #fff; display: grid; place-items: center; }
+  .stage { width: 420px; height: 420px; position: relative; display: grid; place-items: center; }
+  .card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .card.enter { animation: entra .6s cubic-bezier(.2, 1.4, .4, 1); }
+  .card.leave { animation: sale .45s ease-in forwards; }
+  @keyframes entra { from { opacity: 0; transform: scale(.6) translateY(20px); } }
+  @keyframes sale { to { opacity: 0; transform: scale(.85) translateY(-16px); } }
+
+  /* título dorado con brillo que pasa */
+  .title {
+    font-family: 'Arial Black', 'Segoe UI', sans-serif; font-weight: 900; font-size: 40px; letter-spacing: 1px; line-height: 1;
+    text-transform: uppercase; white-space: nowrap; position: relative; z-index: 3;
+    background: linear-gradient(180deg, #fff6c8 0%, #ffd23f 40%, #ff9a1f 75%, #ff6a00 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 3px 0 #5a2600) drop-shadow(0 6px 10px rgba(0,0,0,.6));
+  }
+  .title::after {
+    content: attr(data-t); position: absolute; inset: 0; color: transparent;
+    background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,.95) 50%, transparent 65%) no-repeat;
+    background-size: 250% 100%; -webkit-background-clip: text; background-clip: text;
+    animation: brillo 3.2s ease-in-out infinite;
+  }
+  @keyframes brillo { 0% { background-position: 150% 0; } 60%, 100% { background-position: -60% 0; } }
+
+  /* regalo flotando con rayos girando detrás */
+  .hero { position: relative; width: 190px; height: 190px; display: grid; place-items: center; margin: 2px 0 -4px; }
+  .rays { position: absolute; width: 300px; height: 300px; border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, rgba(255, 210, 63, .28) 0deg 9deg, transparent 9deg 24deg);
+    -webkit-mask: radial-gradient(circle, #000 20%, transparent 68%); mask: radial-gradient(circle, #000 20%, transparent 68%);
+    animation: gira 14s linear infinite; }
+  .glow { position: absolute; width: 170px; height: 170px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 170, 40, .75), rgba(255, 90, 0, .25) 55%, transparent 72%); animation: late 2.4s ease-in-out infinite; }
+  @keyframes gira { to { transform: rotate(360deg); } }
+  @keyframes late { 50% { transform: scale(1.12); opacity: .8; } }
+  .gift { position: relative; width: 170px; height: 170px; object-fit: contain; z-index: 2; filter: drop-shadow(0 10px 14px rgba(0,0,0,.55)); animation: flota 3s ease-in-out infinite; }
+  .gift.av { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 5px solid #ffd23f; }
+  .gift.emoji { font-size: 120px; line-height: 170px; text-align: center; width: auto; height: auto; }
+  @keyframes flota { 50% { transform: translateY(-10px) rotate(-3deg); } }
+  .bump .gift { animation: salta .7s cubic-bezier(.2, 1.6, .4, 1), flota 3s ease-in-out .7s infinite; }
+  @keyframes salta { 0% { transform: scale(.4) rotate(-20deg); } 60% { transform: scale(1.18) rotate(6deg); } 100% { transform: none; } }
+
+  .name, .value, .big { font-weight: 900; line-height: 1.05; white-space: nowrap; max-width: 400px; overflow: hidden; text-overflow: ellipsis; position: relative; z-index: 3;
+    text-shadow: -3px -3px 0 #1a0f00, 3px -3px 0 #1a0f00, -3px 3px 0 #1a0f00, 3px 3px 0 #1a0f00, 0 3px 0 #1a0f00, 0 6px 12px rgba(0,0,0,.6); }
+  .name { font-size: 38px; }
+  .value { font-size: 42px; color: #ffd23f; display: flex; align-items: center; gap: 8px; }
+  .big { font-size: 54px; color: #ffd23f; }
+  .coin { width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center;
+    background: radial-gradient(circle at 35% 30%, #fff3b0, #ffc928 45%, #e08a00 100%); box-shadow: inset 0 -3px 0 #b86a00, 0 0 0 3px #1a0f00; }
+  .coin::after { content: ''; width: 14px; height: 14px; border-radius: 50%; border: 3px solid rgba(140, 70, 0, .75); }
+  .empty { font-size: 24px; font-weight: 800; opacity: .8; text-shadow: 0 2px 6px #000; }
+
+  /* meta */
+  .bar { width: 320px; height: 22px; border-radius: 99px; background: rgba(0,0,0,.55); border: 3px solid #1a0f00; overflow: hidden; margin-top: 4px; position: relative; z-index: 3; }
+  .bar span { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #ff4f7b, #ffd23f); transition: width .6s cubic-bezier(.2, 1, .3, 1); position: relative; overflow: hidden; }
+  .bar span::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.7) 50%, transparent 70%); animation: barra 1.8s linear infinite; }
+  @keyframes barra { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  .done .title { animation: fiesta .6s ease-in-out infinite alternate; }
+  @keyframes fiesta { to { transform: scale(1.08) rotate(-2deg); } }
+
+  /* chispas al actualizar */
+  .spark { position: absolute; left: 50%; top: 45%; width: 10px; height: 10px; border-radius: 50%; background: #ffe27a; box-shadow: 0 0 10px #ffb400; z-index: 4; pointer-events: none; animation: chispa .9s ease-out forwards; }
+  @keyframes chispa { from { transform: translate(-50%, -50%) scale(1); opacity: 1; } to { transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(.2); opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="stage" id="stage"></div>
+
+<script src="pf-config.js"></script>
+<script src="supabase.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const MODO = ['top', 'streak', 'goal', 'combo'].includes(q.get('w')) ? q.get('w') : 'top';
+  const TURNO = Math.max(3, Number(q.get('t')) || 8) * 1000;
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const num = (n) => Number(n || 0).toLocaleString('es-CO');
+  const stage = document.getElementById('stage');
+
+  // Se ajusta al tamaño de la fuente sin perder nitidez (zoom re-dibuja, no estira)
+  function ajustar() {
+    const z = Math.min(innerWidth / 420, innerHeight / 420) * (Number(q.get('zoom')) || 1);
+    stage.style.zoom = z > 0 ? z : 1;
+  }
+  addEventListener('resize', ajustar);
+  ajustar();
+
+  let S = null;
+  let actual = MODO === 'combo' ? 'top' : MODO;
+  let firma = '';
+
+  const imgGift = (g, avatar) => g && g.image
+    ? `<img class="gift" src="${esc(g.image)}" referrerpolicy="no-referrer" alt="" onerror="this.outerHTML='<div class=&quot;gift emoji&quot;>🎁</div>'">`
+    : avatar ? `<img class="gift av" src="${esc(avatar)}" referrerpolicy="no-referrer" alt="">` : `<div class="gift emoji">🎁</div>`;
+  const hero = (inner) => `<div class="hero"><div class="rays"></div><div class="glow"></div>${inner}</div>`;
+  const titulo = (t) => `<div class="title" data-t="${esc(t)}">${esc(t)}</div>`;
+
+  function html(w) {
+    if (!S) return '';
+    if (w === 'top') {
+      const t = S.top;
+      if (!t) return titulo('Mejor regalo') + hero('<div class="gift emoji" style="opacity:.5">🎁</div>') + '<div class="empty">Esperando regalos…</div>';
+      return titulo('Mejor regalo') + hero(imgGift(t.gift, t.avatar)) +
+        `<div class="name">${esc(t.name)}</div><div class="value">${num(t.value)}<span class="coin"></span></div>`;
+    }
+    if (w === 'streak') {
+      const t = S.streak;
+      if (!t) return titulo('Mejor racha') + hero('<div class="gift emoji" style="opacity:.5">🔥</div>') + '<div class="empty">Esperando un combo…</div>';
+      return titulo('Mejor racha') + hero(imgGift(t.gift, t.avatar)) +
+        `<div class="name">${esc(t.name)}</div><div class="big">x${num(t.count)}</div>`;
+    }
+    const g = S.goal;
+    const pct = Math.min(100, Math.round((g.count / Math.max(1, g.target)) * 100));
+    const lista = g.count >= g.target;
+    return titulo(lista ? '¡Meta cumplida!' : 'Meta') + hero(imgGift({ image: g.image })) +
+      `<div class="big">${num(Math.min(g.count, g.target))} / ${num(g.target)}</div><div class="bar"><span style="width:${pct}%"></span></div>`;
+  }
+
+  function pintar(w, animar) {
+    const old = stage.querySelector('.card');
+    const d = document.createElement('div');
+    d.className = 'card' + (animar === 'enter' ? ' enter' : animar === 'bump' ? ' bump' : '');
+    if (w === 'goal' && S && S.goal.count >= S.goal.target) d.classList.add('done');
+    d.innerHTML = html(w);
+    if (old && animar === 'enter') { old.classList.add('leave'); setTimeout(() => old.remove(), 450); }
+    else if (old) old.remove();
+    stage.appendChild(d);
+    if (animar === 'bump') chispas(d);
+  }
+
+  function chispas(el) {
+    for (let i = 0; i < 16; i++) {
+      const s = document.createElement('div');
+      s.className = 'spark';
+      const a = (Math.PI * 2 * i) / 16, r = 110 + Math.random() * 60;
+      s.style.setProperty('--x', Math.cos(a) * r + 'px');
+      s.style.setProperty('--y', Math.sin(a) * r + 'px');
+      el.appendChild(s);
+      setTimeout(() => s.remove(), 900);
+    }
+  }
+
+  const firmaDe = (w) => JSON.stringify(w === 'top' ? S.top : w === 'streak' ? S.streak : S.goal);
+
+  function actualizar(st) {
+    S = st;
+    const f = firmaDe(actual);
+    const cambio = firma && f !== firma;
+    firma = f;
+    pintar(actual, cambio ? 'bump' : (stage.childElementCount ? '' : 'enter'));
+  }
+
+  // Combinados: va turnando (se salta los que todavía no tienen nada)
+  if (MODO === 'combo') {
+    setInterval(() => {
+      if (!S) return;
+      const orden = ['top', 'streak', 'goal'];
+      for (let i = 1; i <= 3; i++) {
+        const w = orden[(orden.indexOf(actual) + i) % 3];
+        if (w === 'goal' || (w === 'top' && S.top) || (w === 'streak' && S.streak) || i === 3) { actual = w; break; }
+      }
+      firma = firmaDe(actual);
+      pintar(actual, 'enter');
+    }, TURNO);
+  }
+
+  if (q.get('preview') === '1') {
+    const demo = [
+      { top: { name: 'Camila', value: 5000, gift: { name: 'Lion', image: '' } }, streak: { name: 'Pepe', count: 3, gift: { name: 'GG' } }, goal: { gift: 'Rose', image: '', target: 100, count: 4 } },
+      { top: { name: 'Camila', value: 5000, gift: { name: 'Lion', image: '' } }, streak: { name: 'Pepe', count: 12, gift: { name: 'GG' } }, goal: { gift: 'Rose', image: '', target: 100, count: 57 } }
+    ];
+    let i = 0;
+    actualizar(demo[0]);
+    setInterval(() => actualizar(demo[++i % 2]), 3500);
+  } else {
+    pfConnect((m) => { if (m.type === 'gift-stats') actualizar(m.stats); }, 'regalos');
+  }
+</script>
+</body>
+</html>
