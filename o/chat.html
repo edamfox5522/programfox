@@ -10,7 +10,8 @@
      ?gifts=0    no mostrar regalos
      ?scale=1.2  más grande
      ?pos=top    mensajes arriba (por defecto abajo)
-     ?paises=1   Juego de Banderas: solo cuando alguien se une a un país (bandera + nombre, sin fondo, 4 s, máximo 3) */
+     (normal)    Juego de Banderas: solo quien dice su país (bandera + nombre, sin fondo, 4 s, máximo 3)
+     ?todo=1     chat completo: todos los comentarios, regalos y seguidores con cuadro */
   :root { --scale: 1; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
@@ -64,14 +65,15 @@
 <script src="pf-conexion.js"></script>
 <script>
   const q = new URLSearchParams(location.search);
-  const MODO_PAISES = q.get('paises') === '1';
+  // Por defecto: modo Banderas (solo quien dice su país). Con ?todo=1 sale el chat completo con cuadros.
+  const MODO_PAISES = q.get('todo') !== '1';
   // en el Juego de Banderas: pocos a la vez y se van rápido
   const MAX = Math.max(1, Number(q.get('max')) || (MODO_PAISES ? 3 : 8));
   const FADE = q.has('fade') ? Number(q.get('fade')) || 0 : (MODO_PAISES ? 4 : 45);
   const GIFTS = q.get('gifts') !== '0';
   if (q.get('scale')) document.documentElement.style.setProperty('--scale', q.get('scale'));
   if (q.get('pos') === 'top') document.body.classList.add('top');
-  const PAISES = q.get('paises') === '1';
+  const PAISES = MODO_PAISES;
   if (PAISES) document.body.classList.add('paises');
   const list = document.getElementById('list');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -134,8 +136,8 @@
 
   if (q.get('preview') === '1' && PAISES) {
     const demo = [
-      { nickname: 'Camila', code: 'co', text: 'colombia' }, { nickname: 'ElPepe_MX', code: 'mx', text: 'mexico' },
-      { nickname: 'Valen', code: 'ar', text: 'argentina' }, { nickname: 'Sofi', code: 'pe', text: 'peru' }, { nickname: 'Juan', code: 've', text: 'venezuela' }
+      { nickname: 'Camila', code: 'co', text: 'Colombia' }, { nickname: 'ElPepe_MX', code: 'mx', text: 'México' },
+      { nickname: 'Valen', code: 'ar', text: 'Argentina' }, { nickname: 'Sofi', code: 'pe', text: 'Perú' }, { nickname: 'Juan', code: 've', text: 'Venezuela' }
     ];
     let i = 0;
     demo.forEach(add);
