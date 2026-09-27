@@ -152,8 +152,8 @@
     const p = i === 0 ? 'p1' : i === 1 ? 'p2' : i === 2 ? 'p3' : 'px';
     const ic = QUE === 'likes' ? '<span class="heart">❤️</span>' : '<span class="coin"></span>';
     const foto = u.avatar
-      ? `<img src="${esc(u.avatar)}" referrerpolicy="no-referrer" alt="" onerror="this.outerHTML='<div class=&quot;ph&quot;>${esc(String(u.name || '?').charAt(0).toUpperCase())}</div>'">`
-      : `<div class="ph">${esc(String(u.name || '?').charAt(0).toUpperCase())}</div>`;
+      ? `<img src="${esc(u.avatar)}" referrerpolicy="no-referrer" alt="" onerror="this.outerHTML='<div class=&quot;ph&quot;>${esc(((ch) => /^[\p{L}\p{N}]$/u.test(ch) ? ch.toUpperCase() : '?')(Array.from(String(u.name || '?'))[0] || '?'))}</div>'">`
+      : `<div class="ph">${esc(((ch) => /^[\p{L}\p{N}]$/u.test(ch) ? ch.toUpperCase() : '?')(Array.from(String(u.name || '?'))[0] || '?'))}</div>`;
     return {
       cls: p,
       html: `<div class="av">${i === 0 ? llamas() + '<div class="crown">👑</div>' : ''}${foto}</div>
