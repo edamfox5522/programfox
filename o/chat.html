@@ -10,7 +10,7 @@
      ?gifts=0    no mostrar regalos
      ?scale=1.2  más grande
      ?pos=top    mensajes arriba (por defecto abajo)
-     ?paises=1   Juego de Banderas: solo los que comentan su país, con su bandera y sin cuadros */
+     ?paises=1   Juego de Banderas: solo cuando alguien se une a un país (bandera + nombre, sin fondo, 4 s, máximo 3) */
   :root { --scale: 1; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
@@ -66,8 +66,8 @@
   const q = new URLSearchParams(location.search);
   const MODO_PAISES = q.get('paises') === '1';
   // en el Juego de Banderas: pocos a la vez y se van rápido
-  const MAX = Math.max(1, Number(q.get('max')) || (MODO_PAISES ? 4 : 8));
-  const FADE = q.has('fade') ? Number(q.get('fade')) || 0 : (MODO_PAISES ? 8 : 45);
+  const MAX = Math.max(1, Number(q.get('max')) || (MODO_PAISES ? 3 : 8));
+  const FADE = q.has('fade') ? Number(q.get('fade')) || 0 : (MODO_PAISES ? 4 : 45);
   const GIFTS = q.get('gifts') !== '0';
   if (q.get('scale')) document.documentElement.style.setProperty('--scale', q.get('scale'));
   if (q.get('pos') === 'top') document.body.classList.add('top');
