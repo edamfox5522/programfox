@@ -137,7 +137,9 @@
   const EVENTOS = params.get('eventos') === '1';
 
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const flagUrl = (c) => (c ? `https://flagcdn.com/h80/${String(c).toLowerCase()}.png` : '');
+  // solo códigos de país de verdad (ej: co, mx, gb-eng); cualquier otra cosa se ignora
+  const flagUrl = (c) => { const k = String(c || '').toLowerCase(); return /^[a-z]{2}(-[a-z]{2,4})?$/.test(k) ? `https://flagcdn.com/h80/${k}.png` : ''; };
+  const pts = (v) => String(Number(v) || 0);
   const $ = (id) => document.getElementById(id);
 
   let state = null;
@@ -173,7 +175,7 @@
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
             <div class="flag-fallback" style="display:none;">${esc(String(c.name).slice(0, 3).toUpperCase())}</div>
           </div>
-          <div class="country-points">${c.points}</div>
+          <div class="country-points">${pts(c.points)}</div>
         </div>
       </div>`;
   }
@@ -244,7 +246,7 @@
         <span class="medal">${medals[i] || ''}</span>
         <img class="top3-flag" src="${flagUrl(c.code)}" alt="" onerror="this.style.display='none';">
         <span>${esc(c.name)}</span>
-        <span class="pts">${c.points} pts</span>
+        <span class="pts">${pts(c.points)} pts</span>
       </div>`).join('') : '<div class="top3-empty">Nadie sumó puntos esta ronda 😅</div>';
     box.classList.add('show');
     clearTimeout(top3Timer);
