@@ -77,15 +77,17 @@
   if (PAISES) document.body.classList.add('paises');
   const list = document.getElementById('list');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const flag = (c) => `https://flagcdn.com/w80/${String(c || '').toLowerCase()}.png`;
+  // solo códigos de país de verdad (ej: co, mx, gb-eng); cualquier otra cosa se ignora
+  const flag = (c) => { const k = String(c || '').toLowerCase(); return /^[a-z]{2}(-[a-z]{2,4})?$/.test(k) ? `https://flagcdn.com/w80/${k}.png` : ''; };
+  const inicial = (t) => { const ch = Array.from(String(t || '?'))[0] || '?'; return /^[\p{L}\p{N}]$/u.test(ch) ? ch.toUpperCase() : '?'; };
 
   function add(m) {
     const d = document.createElement('div');
     d.className = 'msg ' + (m.kind || 'chat');
     const name = m.nickname || m.uniqueId || '???';
     const av = m.avatar
-      ? `<img class="av" src="${esc(m.avatar)}" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;av letter&quot;><span>${esc(name.charAt(0).toUpperCase())}</span></div>'">`
-      : `<div class="av letter"><span>${esc(name.charAt(0).toUpperCase())}</span></div>`;
+      ? `<img class="av" src="${esc(m.avatar)}" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;av letter&quot;><span>${esc(inicial(name))}</span></div>'">`
+      : `<div class="av letter"><span>${esc(inicial(name))}</span></div>`;
     if (PAISES) {
       d.innerHTML = `<img class="flag-big" src="${flag(m.code)}" referrerpolicy="no-referrer" onerror="this.remove()"><div class="body"><div class="who"><span class="name">${esc(name)}</span></div><div class="text">${esc(m.text)}</div></div>`;
       list.appendChild(d);
@@ -95,7 +97,7 @@
     }
     let text = esc(m.text);
     if (m.kind === 'gift' && m.giftImg) text += `<img class="gimg" src="${esc(m.giftImg)}" referrerpolicy="no-referrer">`;
-    d.innerHTML = `${av}<div class="body"><div class="who">${m.code ? `<img class="fl" src="${flag(m.code)}" onerror="this.remove()">` : ''}<span class="name">${esc(name)}</span></div><div class="text">${text}</div></div>`;
+    d.innerHTML = `${av}<div class="body"><div class="who">${m.code && flag(m.code) ? `<img class="fl" src="${flag(m.code)}" onerror="this.remove()">` : ''}<span class="name">${esc(name)}</span></div><div class="text">${text}</div></div>`;
     list.appendChild(d);
     while (list.children.length > MAX) list.firstElementChild.remove();
     if (FADE > 0) setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 500); }, FADE * 1000);
