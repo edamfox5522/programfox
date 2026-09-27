@@ -99,10 +99,25 @@
     if (FADE > 0) setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 500); }, FADE * 1000);
   }
 
+  const VISTOS = new Map();   // usuario -> país que ya se mostró
+  const NOMBRES = { co: 'Colombia', mx: 'México', ar: 'Argentina', pe: 'Perú', ve: 'Venezuela', cl: 'Chile', ec: 'Ecuador', bo: 'Bolivia',
+    py: 'Paraguay', uy: 'Uruguay', br: 'Brasil', es: 'España', us: 'Estados Unidos', gt: 'Guatemala', hn: 'Honduras', sv: 'El Salvador',
+    ni: 'Nicaragua', cr: 'Costa Rica', pa: 'Panamá', cu: 'Cuba', do: 'Rep. Dominicana', pr: 'Puerto Rico', ca: 'Canadá', it: 'Italia',
+    fr: 'Francia', de: 'Alemania', pt: 'Portugal', gb: 'Reino Unido', jp: 'Japón' };
   function fromEvent(ev) {
     const u = ev.user || {};
     const base = { nickname: u.nickname, uniqueId: u.uniqueId, avatar: u.avatar, code: ev.code };
-    if (PAISES) return ev.type === 'chat' && ev.pais ? { ...base, code: ev.pais, kind: 'chat', text: ev.paisNombre || ev.comment } : null;
+    if (PAISES) {
+      if (ev.type !== 'chat') return null;
+      // Funciona con cualquier versión de ProgramFox: sale cuando alguien entra a un país (o se cambia)
+      const id = u.userId || u.uniqueId || u.nickname;
+      const code = ev.pais || ev.code || '';
+      const antes = VISTOS.get(id);
+      if (!code || antes === code) return null;
+      VISTOS.set(id, code);
+      if (ev.pais === '' && 'pais' in ev) return null;   // versión nueva: ya avisa exactamente quién se unió
+      return { ...base, code, kind: 'chat', text: ev.paisNombre || NOMBRES[String(code).toLowerCase()] || ev.comment };
+    }
     if (ev.type === 'chat') return { ...base, kind: 'chat', text: ev.comment };
     if (!GIFTS) return null;
     if (ev.type === 'gift') return { ...base, kind: 'gift', text: `envió ${ev.gift.count}x ${ev.gift.name}`, giftImg: ev.gift.image };
