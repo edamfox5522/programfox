@@ -9,7 +9,8 @@
      ?fade=40    segundos que dura cada mensaje (0 = no se borran)
      ?gifts=0    no mostrar regalos
      ?scale=1.2  más grande
-     ?pos=top    mensajes arriba (por defecto abajo) */
+     ?pos=top    mensajes arriba (por defecto abajo)
+     ?paises=1   Juego de Banderas: solo los que comentan su país, con su bandera y sin cuadros */
   :root { --scale: 1; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
@@ -43,6 +44,15 @@
   .text { font-size: 3.2em; font-weight: 600; line-height: 1.3; word-break: break-word; text-shadow: 0 .06em .15em #000; }
   .msg.gift .text { color: #ffd24a; font-weight: 800; }
   .gimg { height: 1.3em; vertical-align: -.25em; margin-left: .2em; }
+  /* ---- modo países: sin cuadros, solo bandera + nombre + lo que escribió ---- */
+  body.paises .msg { background: none; border: 0; box-shadow: none; padding: 0; align-items: center; gap: 1.8em; }
+  body.paises .flag-big { height: 7.4em; width: 10.8em; object-fit: cover; border-radius: .6em; flex: none;
+    box-shadow: 0 0 0 .3em rgba(255,255,255,.9), 0 .5em 1.2em rgba(0,0,0,.55); animation: ondea 2.4s ease-in-out infinite; }
+  body.paises .body { padding: 0; }
+  body.paises .who { font-size: 4.8em; color: #fff; font-weight: 900; }
+  body.paises .text { font-size: 4.2em; font-weight: 800; color: #ffd84a; text-transform: capitalize; }
+  body.paises .who, body.paises .text { text-shadow: -.06em -.06em 0 #000, .06em -.06em 0 #000, -.06em .06em 0 #000, .06em .06em 0 #000, 0 .1em .3em rgba(0,0,0,.7); }
+  @keyframes ondea { 50% { transform: rotate(-4deg) scale(1.04); } }
   @keyframes entra { from { opacity: 0; transform: translateX(-4em) scale(.95); } to { opacity: 1; transform: none; } }
   @keyframes sale { to { opacity: 0; transform: translateX(-3em); } }
 </style>
@@ -54,11 +64,15 @@
 <script src="pf-conexion.js"></script>
 <script>
   const q = new URLSearchParams(location.search);
-  const MAX = Math.max(1, Number(q.get('max')) || 8);
-  const FADE = q.has('fade') ? Number(q.get('fade')) || 0 : 45;
+  const MODO_PAISES = q.get('paises') === '1';
+  // en el Juego de Banderas: pocos a la vez y se van rápido
+  const MAX = Math.max(1, Number(q.get('max')) || (MODO_PAISES ? 4 : 8));
+  const FADE = q.has('fade') ? Number(q.get('fade')) || 0 : (MODO_PAISES ? 8 : 45);
   const GIFTS = q.get('gifts') !== '0';
   if (q.get('scale')) document.documentElement.style.setProperty('--scale', q.get('scale'));
   if (q.get('pos') === 'top') document.body.classList.add('top');
+  const PAISES = q.get('paises') === '1';
+  if (PAISES) document.body.classList.add('paises');
   const list = document.getElementById('list');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const flag = (c) => `https://flagcdn.com/w80/${String(c || '').toLowerCase()}.png`;
@@ -70,6 +84,13 @@
     const av = m.avatar
       ? `<img class="av" src="${esc(m.avatar)}" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;av letter&quot;><span>${esc(name.charAt(0).toUpperCase())}</span></div>'">`
       : `<div class="av letter"><span>${esc(name.charAt(0).toUpperCase())}</span></div>`;
+    if (PAISES) {
+      d.innerHTML = `<img class="flag-big" src="${flag(m.code)}" referrerpolicy="no-referrer" onerror="this.remove()"><div class="body"><div class="who"><span class="name">${esc(name)}</span></div><div class="text">${esc(m.text)}</div></div>`;
+      list.appendChild(d);
+      while (list.children.length > MAX) list.firstElementChild.remove();
+      if (FADE > 0) setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 500); }, FADE * 1000);
+      return;
+    }
     let text = esc(m.text);
     if (m.kind === 'gift' && m.giftImg) text += `<img class="gimg" src="${esc(m.giftImg)}" referrerpolicy="no-referrer">`;
     d.innerHTML = `${av}<div class="body"><div class="who">${m.code ? `<img class="fl" src="${flag(m.code)}" onerror="this.remove()">` : ''}<span class="name">${esc(name)}</span></div><div class="text">${text}</div></div>`;
@@ -81,6 +102,7 @@
   function fromEvent(ev) {
     const u = ev.user || {};
     const base = { nickname: u.nickname, uniqueId: u.uniqueId, avatar: u.avatar, code: ev.code };
+    if (PAISES) return ev.type === 'chat' && ev.pais ? { ...base, code: ev.pais, kind: 'chat', text: ev.paisNombre || ev.comment } : null;
     if (ev.type === 'chat') return { ...base, kind: 'chat', text: ev.comment };
     if (!GIFTS) return null;
     if (ev.type === 'gift') return { ...base, kind: 'gift', text: `envió ${ev.gift.count}x ${ev.gift.name}`, giftImg: ev.gift.image };
@@ -89,7 +111,15 @@
     return null;
   }
 
-  if (q.get('preview') === '1') {
+  if (q.get('preview') === '1' && PAISES) {
+    const demo = [
+      { nickname: 'Camila', code: 'co', text: 'colombia' }, { nickname: 'ElPepe_MX', code: 'mx', text: 'mexico' },
+      { nickname: 'Valen', code: 'ar', text: 'argentina' }, { nickname: 'Sofi', code: 'pe', text: 'peru' }, { nickname: 'Juan', code: 've', text: 'venezuela' }
+    ];
+    let i = 0;
+    demo.forEach(add);
+    setInterval(() => add(demo[i++ % demo.length]), 2500);
+  } else if (q.get('preview') === '1') {
     const demo = [
       { nickname: 'Camila', code: 'co', kind: 'chat', text: 'colombia 🇨🇴' },
       { nickname: 'ElPepe_MX', code: 'mx', kind: 'chat', text: 'vamos méxico!!' },
