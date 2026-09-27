@@ -28,14 +28,18 @@
     const cfg = window.PF_CFG || {};
     if (!window.supabase || !cfg.url || !cfg.key) { console.error('ProgramFox: falta la configuración de la nube'); return; }
     const sb = window.supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: false, autoRefreshToken: false } });
-    let ch = null;
+    let ch = null, esperando = null;
     const unirse = () => {
-      if (ch) { try { sb.removeChannel(ch); } catch (_) {} }
-      ch = sb.channel('pf-' + KEY, { config: { broadcast: { self: false }, presence: { key: (nombre || 'overlay') + '-' + Math.random().toString(36).slice(2, 8) } } });
-      ch.on('broadcast', { event: 'm' }, (r) => { if (r && r.payload) onMsg(r.payload); });
-      ch.subscribe((st) => {
-        if (st === 'SUBSCRIBED') ch.track({ o: nombre || 'overlay', t: Date.now() });
-        if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') setTimeout(unirse, 5000);
+      esperando = null;
+      const viejo = ch; ch = null;
+      if (viejo) { try { sb.removeChannel(viejo); } catch (_) {} }
+      const este = sb.channel('pf-' + KEY, { config: { broadcast: { self: false }, presence: { key: (nombre || 'overlay') + '-' + Math.random().toString(36).slice(2, 8) } } });
+      ch = este;
+      este.on('broadcast', { event: 'm' }, (r) => { if (ch === este && r && r.payload) onMsg(r.payload); });
+      este.subscribe((st) => {
+        if (ch !== este) return;                       // aviso de un canal viejo: no hacer nada
+        if (st === 'SUBSCRIBED') este.track({ o: nombre || 'overlay', t: Date.now() });
+        if ((st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') && !esperando) esperando = setTimeout(unirse, 5000);
       });
     };
     unirse();
