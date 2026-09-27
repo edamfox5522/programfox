@@ -99,7 +99,9 @@
     if (FADE > 0) setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 500); }, FADE * 1000);
   }
 
-  const VISTOS = new Map();   // usuario -> país que ya se mostró
+  const VISTOS = new Map();   // usuario -> cuándo salió por última vez
+  const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const ALIAS = { mx: ['mexico', 'mex', 'mx'], us: ['usa', 'eeuu', 'gringolandia'], do: ['dominicana', 'rd'], gb: ['uk', 'inglaterra'], sv: ['salvador'], cr: ['costarica'], pr: ['boricua', 'puertorico'], co: ['col'], ar: ['arg'], ve: ['vzla', 'venezuela'], pe: ['peru'] };
   const NOMBRES = { co: 'Colombia', mx: 'México', ar: 'Argentina', pe: 'Perú', ve: 'Venezuela', cl: 'Chile', ec: 'Ecuador', bo: 'Bolivia',
     py: 'Paraguay', uy: 'Uruguay', br: 'Brasil', es: 'España', us: 'Estados Unidos', gt: 'Guatemala', hn: 'Honduras', sv: 'El Salvador',
     ni: 'Nicaragua', cr: 'Costa Rica', pa: 'Panamá', cu: 'Cuba', do: 'Rep. Dominicana', pr: 'Puerto Rico', ca: 'Canadá', it: 'Italia',
@@ -109,14 +111,18 @@
     const base = { nickname: u.nickname, uniqueId: u.uniqueId, avatar: u.avatar, code: ev.code };
     if (PAISES) {
       if (ev.type !== 'chat') return null;
-      // Funciona con cualquier versión de ProgramFox: sale cuando alguien entra a un país (o se cambia)
+      // Sale cuando alguien entra a su país o escribe el nombre de su país (una vez cada 20 s por persona)
       const id = u.userId || u.uniqueId || u.nickname;
-      const code = ev.pais || ev.code || '';
-      const antes = VISTOS.get(id);
-      if (!code || antes === code) return null;
-      VISTOS.set(id, code);
-      if (ev.pais === '' && 'pais' in ev) return null;   // versión nueva: ya avisa exactamente quién se unió
-      return { ...base, code, kind: 'chat', text: ev.paisNombre || NOMBRES[String(code).toLowerCase()] || ev.comment };
+      const code = String(ev.pais || ev.code || '').toLowerCase();
+      if (!code) return null;
+      const nombre = NOMBRES[code] || '';
+      const dijoPais = !!ev.pais || (nombre && norm(ev.comment).includes(norm(nombre))) || norm(ev.comment) === code ||
+        (ALIAS[code] || []).some(a => norm(ev.comment).split(' ').includes(a));
+      if (!dijoPais) return null;
+      const ahora = Date.now();
+      if (ahora - (VISTOS.get(id) || 0) < 20000) return null;
+      VISTOS.set(id, ahora);
+      return { ...base, code, kind: 'chat', text: ev.paisNombre || nombre || ev.comment };
     }
     if (ev.type === 'chat') return { ...base, kind: 'chat', text: ev.comment };
     if (!GIFTS) return null;
