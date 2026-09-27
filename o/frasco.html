@@ -560,7 +560,7 @@
       // lo que de verdad se movió en este cuadro (no la velocidad "empujada" contra la pared)
       const v = Math.hypot(m.x - (m.x0 ?? m.x), m.y - (m.y0 ?? m.y));
       m.quieto = v < 0.35 ? (m.quieto || 0) + 1 : 0;
-      if (m.quieto > 45) { m.duerme = true; m.px = m.x; m.py = m.y; }
+      if (m.quieto > 45) { m.duerme = true; m.px = m.x; m.py = m.y; guardarLuego(); }
       // lleno: lo que se queda quieto ya no se vuelve a mover nunca (adentro y afuera)
       if (m.duerme && (lleno || !m.dentro)) m.fijo = true;
     }
@@ -630,14 +630,27 @@
     if (DEMO) return;
     clearTimeout(guardT);
     guardT = setTimeout(() => {
-      try { localStorage.setItem('pf-frasco', JSON.stringify({ m: monedas.map(m => [m.img, m.coins]), d: donadores, t: total })); } catch (e) { /* nada */ }
+      // se guarda la posición EXACTA de cada regalo (así al recargar queda igualito, sin volver a caer)
+      const r1 = (v) => Math.round(v * 10) / 10;
+      const m = monedas.filter(o => !o.cae).map(o => [o.img, o.coins, r1(o.x), r1(o.y), r1(o.r), Math.round(o.rot * 100) / 100, o.dentro ? 1 : 0]);
+      try { localStorage.setItem('pf-frasco', JSON.stringify({ v: 2, m, lleno: lleno ? 1 : 0, d: donadores, t: total })); } catch (e) { /* nada */ }
     }, 1500);
   }
   if (!DEMO) try {
     const prev = JSON.parse(localStorage.getItem('pf-frasco') || '{}');
     if (prev && !Array.isArray(prev)) {
       donadores = prev.d || {}; total = Number(prev.t) || 0;
-      (prev.m || []).slice(-MAX).forEach(([img, coins], i) => setTimeout(() => soltar(img, coins), i * 25));
+      if (prev.v === 2) {
+        // versión nueva: cada regalo vuelve a su lugar, quieto (no se vuelve a caer ni a amontonar raro)
+        lleno = !!prev.lleno;
+        for (const [img, coins, x, y, r, rot, dentro] of (prev.m || []).slice(-(MAX + MAX_FUERA))) {
+          if (![x, y, r].every(Number.isFinite)) continue;
+          monedas.push({ img, coins, x, y, px: x, py: y, r, rot: rot || 0, cae: false, dentro: !!dentro, duerme: true, fijo: lleno || !dentro, quieto: 99 });
+        }
+      } else {
+        // versión vieja (solo la lista): se vuelven a soltar despacio y repartidos
+        (prev.m || []).slice(-MAX).forEach(([img, coins], i) => setTimeout(() => soltar(img, coins), i * 110));
+      }
     }
   } catch (e) { /* nada */ }
   pintarBarras(false);
