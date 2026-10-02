@@ -86,7 +86,7 @@
     d.className = 'msg ' + (m.kind || 'chat');
     const name = m.nickname || m.uniqueId || '???';
     const av = m.avatar
-      ? `<img class="av" src="${esc(m.avatar)}" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;av letter&quot;><span>${esc(inicial(name))}</span></div>'">`
+      ? `<img class="av" src="${esc(m.avatar)}" referrerpolicy="no-referrer" data-l="${esc(inicial(name))}" onerror="const d=document.createElement('div');d.className='av letter';const t=document.createElement('span');t.textContent=this.dataset.l;d.appendChild(t);this.replaceWith(d)">`
       : `<div class="av letter"><span>${esc(inicial(name))}</span></div>`;
     if (PAISES) {
       d.innerHTML = `<img class="flag-big" src="${flag(m.code)}" referrerpolicy="no-referrer" onerror="this.remove()"><div class="body"><div class="who"><span class="name">${esc(name)}</span></div><div class="text">${esc(m.text)}</div></div>`;
