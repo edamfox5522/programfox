@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Marquesina</title>
+<style>
+  /* Marquesina de ProgramFox: texto que pasa sin parar.
+     Fuente recomendada: ancho de tu pantalla × 150 (ej: 1080 × 150). Fondo transparente. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  body { display: grid; place-items: center; font-family: 'Segoe UI Black', 'Arial Black', 'Segoe UI', sans-serif; font-weight: 900; }
+  :root { --tam: 46px; }
+  .banda { position: relative; width: calc(100% - 24px); height: calc(var(--tam) * 1.9); display: flex; align-items: center; overflow: hidden; }
+  .pista { display: flex; white-space: nowrap; will-change: transform; }
+  .trozo { display: inline-flex; align-items: center; font-size: var(--tam); line-height: 1; padding-right: calc(var(--tam) * .6); }
+  .sep { display: inline-block; margin-left: calc(var(--tam) * .6); font-size: .8em; }
+  .borde-izq, .borde-der { position: absolute; top: 0; bottom: 0; width: 60px; z-index: 2; pointer-events: none; }
+  .borde-izq { left: 0; } .borde-der { right: 0; }
+  .chispas { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+  .chispa { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px 2px currentColor; animation: brilla var(--t) ease-in-out infinite; opacity: 0; }
+  @keyframes brilla { 50% { opacity: 1; transform: scale(1.4); } }
+
+  /* ---------- 1. Clásico: píldora oscura con borde verde agua y letras rosa-rojo ---------- */
+  .est-clasico .banda { border-radius: 999px; background: linear-gradient(180deg, #1c1f2b, #11131b); border: 3px solid #2fe0c3; box-shadow: 0 0 18px rgba(47,224,195,.45), inset 0 2px 0 rgba(255,255,255,.06); }
+  .est-clasico .trozo { background: linear-gradient(180deg, #ff9db0, #ff3d63 60%, #d81e48); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 0 rgba(0,0,0,.6)); }
+  .est-clasico .sep { color: #2fe0c3; -webkit-text-fill-color: #2fe0c3; filter: drop-shadow(0 0 6px #2fe0c3); }
+  .est-clasico .borde-izq { background: linear-gradient(90deg, #15171f, transparent); } .est-clasico .borde-der { background: linear-gradient(270deg, #15171f, transparent); }
+  .est-clasico .chispa { color: #2fe0c3; }
+
+  /* ---------- 2. Neón: letras de luz celeste con parpadeo ---------- */
+  .est-neon .banda { border-radius: 16px; background: rgba(6, 8, 20, .82); border: 2px solid #ff3df2; box-shadow: 0 0 14px #ff3df2, inset 0 0 14px rgba(255,61,242,.4); }
+  .est-neon .trozo { color: #dffcff; text-shadow: 0 0 4px #fff, 0 0 10px #39e6ff, 0 0 22px #39e6ff, 0 0 40px #1b9dff; animation: zumba 4s infinite; }
+  .est-neon .sep { color: #ff3df2; text-shadow: 0 0 8px #ff3df2, 0 0 20px #ff3df2; }
+  @keyframes zumba { 0%, 92%, 100% { opacity: 1; } 93% { opacity: .55; } 95% { opacity: 1; } 96% { opacity: .7; } }
+  .est-neon .chispa { color: #39e6ff; }
+
+  /* ---------- 3. Cómic: franja amarilla con puntos y letras blancas de borde negro ---------- */
+  .est-comic .banda { border-radius: 12px; background: radial-gradient(circle, rgba(0,0,0,.14) 1.5px, transparent 2px) 0 0 / 10px 10px, #ffd23a; border: 4px solid #111; box-shadow: 6px 6px 0 #111; transform: rotate(-1deg); }
+  .est-comic .trozo { color: #fff; -webkit-text-stroke: calc(var(--tam) * .09) #111; paint-order: stroke fill; text-shadow: 4px 4px 0 #111; letter-spacing: 1px; font-family: 'Comic Sans MS', 'Segoe UI Black', sans-serif; }
+  .est-comic .sep { color: #ff3b3b; }
+  .est-comic .chispa { display: none; }
+
+  /* ---------- 4. Precaución: cinta amarilla y negra ---------- */
+  .est-precaucion .banda { background: #ffd100; border-top: 12px solid transparent; border-bottom: 12px solid transparent; border-image: repeating-linear-gradient(-45deg, #111 0 14px, #ffd100 14px 28px) 12; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+  .est-precaucion .trozo { color: #111; text-transform: uppercase; letter-spacing: 2px; }
+  .est-precaucion .sep { color: #111; }
+  .est-precaucion .borde-izq { background: linear-gradient(90deg, #ffd100, transparent); } .est-precaucion .borde-der { background: linear-gradient(270deg, #ffd100, transparent); }
+  .est-precaucion .chispa { display: none; }
+
+  /* ---------- 5. Pixel: estilo videojuego de bloques ---------- */
+  .est-pixel .banda { background: #1d2b1a; border: 6px solid #7bd84a; box-shadow: 0 0 0 6px #2f4a26, 0 8px 0 6px #12180f; image-rendering: pixelated; }
+  .est-pixel .trozo { color: #e9ffd6; font-family: 'Courier New', monospace; font-weight: 900; text-shadow: 3px 0 0 #3d7a24, 0 3px 0 #3d7a24, 3px 3px 0 #0e1a0a; letter-spacing: 2px; text-transform: uppercase; }
+  .est-pixel .sep { color: #ffd84a; text-shadow: 3px 3px 0 #7a5a10; }
+  .est-pixel .chispa { color: #7bd84a; border-radius: 0; }
+
+  /* ---------- 6. Arcoíris: letras con todos los colores en movimiento ---------- */
+  .est-arcoiris .banda { border-radius: 999px; background: rgba(12, 12, 20, .78); border: 3px solid transparent; background-clip: padding-box; box-shadow: 0 0 0 3px rgba(255,255,255,.18), 0 8px 22px rgba(0,0,0,.4); }
+  .est-arcoiris .trozo { background: linear-gradient(90deg, #ff4d4d, #ffa64d, #ffe14d, #4dff88, #4dc3ff, #9b6bff, #ff4dd2, #ff4d4d); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: corre 4s linear infinite; filter: drop-shadow(0 2px 0 rgba(0,0,0,.5)); }
+  .est-arcoiris .sep { color: #fff; -webkit-text-fill-color: #fff; }
+  @keyframes corre { to { background-position: 300% 0; } }
+  .est-arcoiris .chispa { color: #fff; }
+
+  /* ---------- 7. Glitch: letras que se separan en rojo y azul ---------- */
+  .est-glitch .banda { background: rgba(8, 8, 12, .86); border-left: 6px solid #ff2e63; border-right: 6px solid #08d9d6; }
+  .est-glitch .trozo { color: #fff; text-transform: uppercase; letter-spacing: 1px; animation: falla 2.6s infinite steps(1); }
+  .est-glitch .sep { color: #08d9d6; }
+  @keyframes falla { 0%, 100% { text-shadow: 3px 0 #ff2e63, -3px 0 #08d9d6; } 20% { text-shadow: -4px 1px #ff2e63, 4px -1px #08d9d6; } 40% { text-shadow: 2px -2px #ff2e63, -2px 2px #08d9d6; } 41% { text-shadow: 10px 0 #ff2e63, -10px 0 #08d9d6; } 43% { text-shadow: 3px 0 #ff2e63, -3px 0 #08d9d6; } 70% { text-shadow: -2px 0 #ff2e63, 2px 0 #08d9d6; } }
+  .est-glitch .chispa { display: none; }
+
+  /* ---------- 8. Dorado: letras de oro sobre franja café ---------- */
+  .est-dorado .banda { border-radius: 14px; background: linear-gradient(180deg, #5a3a12, #2c1b07); border: 3px solid #f6c453; box-shadow: 0 0 0 2px #7a4f12, 0 0 22px rgba(246,196,83,.45), inset 0 2px 0 rgba(255,230,160,.25); }
+  .est-dorado .trozo { background: linear-gradient(180deg, #fff6c9 0%, #ffd766 35%, #e3a21a 60%, #fff0a8 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 0 #3a2306) drop-shadow(0 0 10px rgba(255,200,80,.4)); }
+  .est-dorado .sep { color: #ffe08a; -webkit-text-fill-color: #ffe08a; }
+  .est-dorado .borde-izq { background: linear-gradient(90deg, #3c260b, transparent); } .est-dorado .borde-der { background: linear-gradient(270deg, #3c260b, transparent); }
+  .est-dorado .chispa { color: #ffd766; }
+
+  /* ---------- 9. Caramelo: franja rosa-morada brillante con letras blancas ---------- */
+  .est-caramelo .banda { border-radius: 999px; background: linear-gradient(180deg, rgba(255,255,255,.35) 0 38%, transparent 40%), linear-gradient(90deg, #ff5fa2, #b15cff); border: 3px solid #fff; box-shadow: 0 8px 0 #8a2f86, 0 12px 22px rgba(0,0,0,.35); }
+  .est-caramelo .trozo { color: #fff; text-shadow: 0 3px 0 #b02a7a, 0 6px 10px rgba(80,0,60,.45); }
+  .est-caramelo .sep { color: #ffe14d; }
+  .est-caramelo .chispa { color: #fff; }
+
+  /* ---------- 10. Mínimo: solo el texto, sin fondo ---------- */
+  .est-minimo .trozo { color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.6), 0 4px 14px rgba(0,0,0,.6); }
+  .est-minimo .sep { color: rgba(255,255,255,.7); }
+  .est-minimo .chispa { display: none; }
+</style>
+</head>
+<body class="est-clasico">
+<div class="banda" id="banda">
+  <div class="pista" id="pista"></div>
+  <div class="borde-izq"></div><div class="borde-der"></div>
+  <div class="chispas" id="chispas"></div>
+</div>
+<script src="pf-config.js"></script>
+<script src="supabase.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const ID = (q.get('i') || 'main').slice(0, 20);
+  const banda = document.getElementById('banda');
+  const pista = document.getElementById('pista');
+  let M = { texto: '¡Bienvenidos al directo! ✦ Sígueme para no perderte nada', estilo: 'clasico', vel: 120, tam: 46, sep: '✦', dir: 'izq' };
+  let ancho = 0, x = 0, clave = '';
+
+  function trozo() {
+    const t = document.createElement('span'); t.className = 'trozo';
+    t.textContent = M.texto || ' ';
+    if (M.sep) { const s = document.createElement('span'); s.className = 'sep'; s.textContent = M.sep; t.appendChild(s); }
+    return t;
+  }
+  function armar() {
+    document.body.className = 'est-' + (M.estilo || 'clasico');
+    document.documentElement.style.setProperty('--tam', (Number(M.tam) || 46) + 'px');
+    pista.innerHTML = '';
+    const uno = trozo(); pista.appendChild(uno);
+    ancho = uno.getBoundingClientRect().width || 1;
+    // copias suficientes para llenar la banda dos veces (así nunca se ve el final)
+    const veces = Math.ceil((banda.clientWidth * 2) / ancho) + 1;
+    for (let i = 1; i < veces; i++) pista.appendChild(trozo());
+    x = x % ancho;
+    chispas();
+  }
+  function chispas() {
+    const c = document.getElementById('chispas'); c.innerHTML = '';
+    for (let i = 0; i < 9; i++) {
+      const s = document.createElement('i'); s.className = 'chispa';
+      s.style.left = (5 + Math.random() * 90) + '%'; s.style.top = (8 + Math.random() * 80) + '%';
+      s.style.setProperty('--t', (1.6 + Math.random() * 2.4) + 's'); s.style.animationDelay = (Math.random() * 3) + 's';
+      c.appendChild(s);
+    }
+  }
+  function poner(m) {
+    if (!m) return;
+    const nueva = JSON.stringify([m.texto, m.estilo, m.tam, m.sep]);
+    M = { ...M, ...m };
+    if (nueva !== clave) { clave = nueva; armar(); }
+  }
+  let antes = performance.now();
+  function paso(ahora) {
+    const dt = Math.min(.1, (ahora - antes) / 1000); antes = ahora;
+    x += (Number(M.vel) || 120) * dt;
+    if (ancho > 0 && x >= ancho) x -= ancho;
+    pista.style.transform = `translateX(${M.dir === 'der' ? (x - ancho) : -x}px)`;
+    requestAnimationFrame(paso);
+  }
+  window.addEventListener('resize', () => { clave = ''; poner(M); });
+  poner(M);
+  requestAnimationFrame(paso);
+  // las letras de sistema pueden tardar en cargar: se vuelve a medir
+  setTimeout(() => { clave = ''; poner(M); }, 600);
+  pfConnect((m) => {
+    if (m.type === 'marq' && m.marq && Array.isArray(m.marq.lista)) {
+      const mia = m.marq.lista.find(x => x.id === ID) || (ID === 'main' ? m.marq.lista[0] : null);
+      if (mia) poner(mia);
+    }
+  }, 'marquesina');
+</script>
+</body>
+</html>
