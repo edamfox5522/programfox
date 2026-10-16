@@ -69,15 +69,19 @@
   .entra { animation: entra .55s cubic-bezier(.2, 1.5, .4, 1) both; }
   @keyframes entra { from { opacity: 0; transform: scale(.55) translateY(.2em); } to { opacity: 1; transform: none; } }
   /* ---------- reto con cuenta regresiva ---------- */
-  .reloj { font-size: calc(var(--tam) * 1.15); min-width: calc(var(--tam) * 2.4); }
-  .reloj.urge { animation: urge .5s ease-in-out infinite; }
+  /* cuenta regresiva: solo el número, sin caja */
+  .reloj { font-size: calc(var(--tam) * 1.25); line-height: 1; color: var(--txt); -webkit-text-stroke: .075em #12101a; paint-order: stroke fill; text-shadow: 0 .07em 0 rgba(0,0,0,.55); }
+  .reloj.urge { color: var(--num); animation: urge .5s ease-in-out infinite; }
+  .num.sube { display: inline-block; animation: sube .45s cubic-bezier(.2, 1.8, .4, 1); }
   @keyframes urge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
-  .prog { font-size: calc(var(--tam) * .5); color: #fff; -webkit-text-stroke: .07em #12101a; paint-order: stroke fill; text-shadow: 0 .06em 0 rgba(0,0,0,.55); }
   .grande { font-size: calc(var(--tam) * 1.35); line-height: 1; white-space: nowrap; padding: .1em .2em; -webkit-text-stroke: .07em #12101a; paint-order: stroke fill; }
   .grande.salvado { color: #3dff7a; text-shadow: 0 .06em 0 #0b4a1d, 0 0 .3em #2bff6a; animation: pop .6s cubic-bezier(.2, 1.8, .4, 1) both, latido 1.2s ease-in-out .6s infinite; }
   .grande.reseteo { color: #ff2a3c; text-shadow: 0 .06em 0 #4a0710, 0 0 .3em #ff2a3c; animation: pop .5s cubic-bezier(.2, 1.8, .4, 1) both, tiembla .12s linear .5s infinite; }
   @keyframes pop { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
   @keyframes tiembla { 0% { transform: translate(0, 0); } 25% { transform: translate(-.03em, .02em); } 50% { transform: translate(.03em, -.02em); } 75% { transform: translate(-.02em, -.02em); } 100% { transform: translate(0, 0); } }
+  /* llegó el regalo de esa línea: salta y brilla */
+  .linea.golpe .fila { animation: golpe .7s cubic-bezier(.2, 1.8, .4, 1) !important; }
+  @keyframes golpe { 0% { transform: scale(1); filter: brightness(1); } 30% { transform: scale(1.28); filter: brightness(1.7) drop-shadow(0 0 .25em #ffd23a); } 100% { transform: scale(1); filter: brightness(1); } }
   @media (prefers-reduced-motion: reduce) { .grande, .reloj { animation: none !important; } }
   @media (prefers-reduced-motion: reduce) { .fila, .linea, .entra, .cont span { animation: none !important; } }
 </style>
@@ -146,12 +150,13 @@
     if (O && O.modo === 'rotar' && (O.lineas || []).length > 1) reloj = setInterval(() => { turno++; pintar(); }, Math.max(1, Number(O.seg) || 4) * 1000);
   }
   // ---------- reto con cuenta regresiva ----------
-  let fin = 0, tic = null;
+  let fin = 0, tic = null, numAntes = null;
   function pintarReto() {
     todo.innerHTML = '';
     const v = O.vivo || { fase: 'espera' };
     const ls = O.lineas || [];
     if (v.fase === 'salvado' || v.fase === 'reseteo') {
+      numAntes = null;
       const g = document.createElement('div'); g.className = 'grande ' + v.fase;
       g.textContent = v.fase === 'salvado' ? (O.txtSalvado || '¡TE SALVASTE!') : (O.txtReset || '¡RESET!');
       todo.appendChild(g); return;
@@ -159,10 +164,13 @@
     const l = v.fase === 'cuenta' ? ls[1] : ls[0];
     if (!l) return;
     const box = document.createElement('div'); box.className = 'linea';
-    box.appendChild(fila(l));
-    if (v.falta > 1 && v.lleva > 0) { const pr = document.createElement('div'); pr.className = 'prog'; pr.textContent = v.lleva + ' / ' + v.falta; box.appendChild(pr); }
+    // en SALVAR el número es lo que falta: baja con cada regalo y sube si mandan otra vez el del reset
+    const quedan = v.fase === 'cuenta' ? Math.max(1, (Number(v.falta) || 1) - (Number(v.lleva) || 0)) : null;
+    box.appendChild(fila(quedan != null ? { ...l, n: String(quedan) } : l));
+    if (quedan != null && numAntes != null && quedan !== numAntes) { const nm = box.querySelector('.num'); if (nm) nm.classList.add('sube'); }
+    numAntes = quedan;
     if (v.fase === 'cuenta') {
-      const c = document.createElement('div'); c.className = 'cont reloj'; c.id = 'reloj';
+      const c = document.createElement('div'); c.className = 'reloj'; c.id = 'reloj';
       const sp = document.createElement('span'); c.appendChild(sp); box.appendChild(c);
     }
     todo.appendChild(box);
@@ -192,6 +200,16 @@
     O = o;
     if (sinCuenta !== clave) { clave = sinCuenta; turno = 0; estilo(); pintar(); rotar(); }
     else contadores();
+    golpe(o.vivo && o.vivo.golpe);
+  }
+  let golpeAntes = null;
+  function golpe(g) {
+    if (golpeAntes === null) { golpeAntes = g ? g.n : 0; return; }   // al abrir no salta
+    if (!g || g.n === golpeAntes) return;
+    golpeAntes = g.n;
+    if (O.modo === 'rotar' && (O.lineas || []).length > 1) { turno = g.i; pintar(); rotar(); }   // muestra la línea de ese regalo
+    const el = todo.querySelector(`.linea[data-i="${g.i}"]`); if (!el) return;
+    el.classList.remove('golpe'); void el.offsetWidth; el.classList.add('golpe');
   }
   pfConnect((m) => {
     if (m.type === 'pers' && m.pers && Array.isArray(m.pers.lista)) {
