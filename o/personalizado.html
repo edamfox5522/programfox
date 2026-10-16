@@ -20,6 +20,14 @@
   #todo { display: flex; flex-direction: column; align-items: center; gap: calc(var(--tam) * .22); }
   body.izquierda #todo { align-items: flex-start; }
 
+  /* movido con el mouse: el centro va donde lo pusiste */
+  body.libre { display: block; padding: 0; }
+  body.libre #todo { position: absolute; left: var(--px); top: var(--py); transform: translate(-50%, -50%); }
+  /* el texto al lado, arriba o abajo del regalo */
+  .grupo { display: inline-flex; align-items: center; gap: calc(var(--tam) * .16); }
+  .tp-izquierda .fila { flex-direction: row-reverse; }
+  .tp-arriba .fila { flex-direction: column-reverse; gap: calc(var(--tam) * .06); }
+  .tp-abajo .fila { flex-direction: column; gap: calc(var(--tam) * .06); }
   .linea { display: flex; flex-direction: column; align-items: center; gap: calc(var(--tam) * .08); }
   body.izquierda .linea { align-items: flex-start; }
   .fila { display: flex; align-items: center; gap: calc(var(--tam) * .16); font-size: var(--tam); line-height: 1; white-space: nowrap; padding: .08em .22em; }
@@ -65,9 +73,28 @@
   .e-comic.a-latido .fila { animation-name: latidoComic; }
   @keyframes latidoComic { 0%, 100% { transform: rotate(-1.5deg) scale(1); } 50% { transform: rotate(-1.5deg) scale(1.06); } }
 
-  /* una por una */
-  .entra { animation: entra .55s cubic-bezier(.2, 1.5, .4, 1) both; }
-  @keyframes entra { from { opacity: 0; transform: scale(.55) translateY(.2em); } to { opacity: 1; transform: none; } }
+  /* color propio de cada texto (le gana al color del estilo) */
+  .txt.conc { color: var(--c) !important; background: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important; }
+  /* una por una: animación de cambio (sale una, entra la otra) */
+  #todo { perspective: 900px; }
+  .cambio { display: flex; flex-direction: column; align-items: center; }
+  body.izquierda .cambio { align-items: flex-start; }
+  .entra-zoom { animation: entraZoom .55s cubic-bezier(.2, 1.5, .4, 1) both; }
+  .sale-zoom { animation: saleZoom .35s ease-in both; }
+  @keyframes entraZoom { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
+  @keyframes saleZoom { to { opacity: 0; transform: scale(1.5); } }
+  .entra-deslizar { animation: entraDesl .5s cubic-bezier(.2, 1.3, .4, 1) both; }
+  .sale-deslizar { animation: saleDesl .35s ease-in both; }
+  @keyframes entraDesl { from { opacity: 0; transform: translateX(70%); } to { opacity: 1; transform: none; } }
+  @keyframes saleDesl { to { opacity: 0; transform: translateX(-70%); } }
+  .entra-voltear { animation: entraVolt .55s cubic-bezier(.2, 1.4, .4, 1) both; }
+  .sale-voltear { animation: saleVolt .35s ease-in both; }
+  @keyframes entraVolt { from { opacity: 0; transform: rotateX(-95deg); } to { opacity: 1; transform: none; } }
+  @keyframes saleVolt { to { opacity: 0; transform: rotateX(95deg); } }
+  .entra-rebote { animation: entraReb .7s cubic-bezier(.3, 1.9, .5, 1) both; }
+  .sale-rebote { animation: saleReb .35s ease-in both; }
+  @keyframes entraReb { from { opacity: 0; transform: translateY(-90%) scale(.8); } to { opacity: 1; transform: none; } }
+  @keyframes saleReb { to { opacity: 0; transform: translateY(70%) scale(.8); } }
   /* ---------- reto con cuenta regresiva ---------- */
   /* cuenta regresiva: solo el número, sin caja */
   .reloj { font-size: calc(var(--tam) * 1.25); line-height: 1; color: var(--txt); -webkit-text-stroke: .075em #12101a; paint-order: stroke fill; text-shadow: 0 .07em 0 rgba(0,0,0,.55); }
@@ -85,7 +112,7 @@
   .linea.golpe .fila { animation: golpe .7s cubic-bezier(.2, 1.8, .4, 1) !important; }
   @keyframes golpe { 0% { transform: scale(1); filter: brightness(1); } 30% { transform: scale(1.28); filter: brightness(1.7) drop-shadow(0 0 .25em #ffd23a); } 100% { transform: scale(1); filter: brightness(1); } }
   @media (prefers-reduced-motion: reduce) { .grande, .reloj { animation: none !important; } }
-  @media (prefers-reduced-motion: reduce) { .fila, .linea, .entra, .cont span { animation: none !important; } }
+  @media (prefers-reduced-motion: reduce) { .fila, .linea, .cambio, .cont span { animation: none !important; } }
 </style>
 </head>
 <body class="f-lucky e-clasico a-latido">
@@ -103,12 +130,16 @@
   const segura = (u) => /^https:\/\//i.test(u || '');
   function fila(l) {
     const f = document.createElement('div'); f.className = 'fila';
-    const add = (cls, t) => { if (t === '' || t == null) return; const s = document.createElement('span'); s.className = cls; s.textContent = t; f.appendChild(s); };
+    // [cantidad + regalo + signo] juntos, y el texto aparte (para ponerlo a un lado, arriba o abajo)
+    const g = document.createElement('span'); g.className = 'grupo';
+    const add = (cls, t, en) => { if (t === '' || t == null) return; const s = document.createElement('span'); s.className = cls; s.textContent = t; (en || g).appendChild(s); };
     add('num', l.n);
-    if (segura(l.img)) { const im = document.createElement('img'); im.className = 'reg'; im.src = l.img; im.alt = ''; im.referrerPolicy = 'no-referrer'; im.onerror = () => { const e = document.createElement('span'); e.className = 'reg-emo'; e.textContent = '🎁'; im.replaceWith(e); }; f.appendChild(im); }
+    if (segura(l.img)) { const im = document.createElement('img'); im.className = 'reg'; im.src = l.img; im.alt = ''; im.referrerPolicy = 'no-referrer'; im.onerror = () => { const e = document.createElement('span'); e.className = 'reg-emo'; e.textContent = '🎁'; im.replaceWith(e); }; g.appendChild(im); }
     else if (l.regalo) add('reg-emo', '🎁');
     add('sep', l.sep);
-    add('txt', l.texto);
+    if (g.childNodes.length) f.appendChild(g);
+    add('txt', l.texto, f);
+    if (/^#[0-9a-f]{6}$/i.test(l.color || '')) { const t = f.querySelector('.txt'); if (t) { t.classList.add('conc'); t.style.setProperty('--c', l.color); } }
     return f;
   }
   function linea(l, i) {
@@ -122,18 +153,26 @@
     return box;
   }
   function estilo() {
-    document.body.className = ['f-' + (O.fuente || 'lucky'), 'e-' + (O.estilo || 'clasico'), 'a-' + (O.anim || 'latido'), O.alinear === 'izquierda' ? 'izquierda' : ''].join(' ');
+    const libre = typeof O.px === 'number' && typeof O.py === 'number';
+    document.body.className = ['f-' + (O.fuente || 'lucky'), 'e-' + (O.estilo || 'clasico'), 'a-' + (O.anim || 'latido'), 'tp-' + (O.tipo === 'reto' ? 'derecha' : (O.textoPos || 'derecha')), O.alinear === 'izquierda' ? 'izquierda' : '', libre ? 'libre' : ''].join(' ');
     const r = document.documentElement.style;
+    if (libre) { r.setProperty('--px', O.px + '%'); r.setProperty('--py', O.py + '%'); }
     r.setProperty('--tam', (Number(O.tam) || 80) + 'px');
     if (O.colorNum) r.setProperty('--num', O.colorNum); else r.removeProperty('--num');
     if (O.colorTxt) r.setProperty('--txt', O.colorTxt); else r.removeProperty('--txt');
   }
-  function pintar() {
-    todo.innerHTML = '';
+  let tCambio = null;
+  function pintar(conCambio) {
+    clearTimeout(tCambio);
     const ls = O.lineas || [];
     if (O.modo === 'rotar' && ls.length > 1) {
-      const el = linea(ls[turno % ls.length], turno % ls.length); el.classList.add('entra'); todo.appendChild(el);
-    } else ls.forEach((l, i) => todo.appendChild(linea(l, i)));
+      const c = ['zoom', 'deslizar', 'voltear', 'rebote'].includes(O.cambio) ? O.cambio : 'zoom';
+      const i = turno % ls.length;
+      const poner = () => { todo.innerHTML = ''; const w = document.createElement('div'); w.className = 'cambio entra-' + c; w.appendChild(linea(ls[i], i)); todo.appendChild(w); };
+      const viejo = todo.querySelector('.cambio');
+      if (conCambio && viejo) { viejo.className = 'cambio sale-' + c; tCambio = setTimeout(poner, 340); }
+      else poner();
+    } else { todo.innerHTML = ''; ls.forEach((l, i) => todo.appendChild(linea(l, i))); }
   }
   /** Solo cambió un contador: se actualiza el número sin redibujar (con saltito) */
   function contadores() {
@@ -149,7 +188,7 @@
   }
   function rotar() {
     clearInterval(reloj); reloj = null;
-    if (O && O.modo === 'rotar' && (O.lineas || []).length > 1) reloj = setInterval(() => { turno++; pintar(); }, Math.max(1, Number(O.seg) || 4) * 1000);
+    if (O && O.modo === 'rotar' && (O.lineas || []).length > 1) reloj = setInterval(() => { turno++; pintar(true); }, Math.max(1, Number(O.seg) || 4) * 1000);
   }
   // ---------- reto con cuenta regresiva ----------
   let fin = 0, tic = null, numAntes = null;
@@ -196,20 +235,20 @@
   function reto(o) {
     const v = o.vivo || { fase: 'espera', restante: 0 };
     fin = Date.now() + (Number(v.restante) || 0);   // cuenta con el reloj de esta PC
-    const k = JSON.stringify({ ...o, vivo: { fase: v.fase, lleva: v.lleva, falta: v.falta } });
+    const k = JSON.stringify({ ...o, px: null, py: null, vivo: { fase: v.fase, lleva: v.lleva, falta: v.falta } });
     O = o;
     clearInterval(reloj); reloj = null;
-    if (k !== clave) { clave = k; estilo(); pintarReto(); }
+    if (k !== clave) { clave = k; estilo(); pintarReto(); } else estilo();
     clearInterval(tic); tic = v.fase === 'cuenta' ? setInterval(ponerReloj, 200) : null;
   }
   function poner(o) {
     if (!o) return;
     if (o.tipo === 'reto') return reto(o);
     clearInterval(tic); tic = null;
-    const sinCuenta = JSON.stringify({ ...o, vivo: null, lineas: (o.lineas || []).map(l => ({ ...l, cuenta: 0 })) });
+    const sinCuenta = JSON.stringify({ ...o, vivo: null, px: null, py: null, lineas: (o.lineas || []).map(l => ({ ...l, cuenta: 0 })) });
     O = o;
     if (sinCuenta !== clave) { clave = sinCuenta; turno = 0; estilo(); pintar(); rotar(); }
-    else contadores();
+    else { estilo(); contadores(); }
     golpe(o.vivo && o.vivo.golpe);
   }
   let golpeAntes = null;
@@ -217,8 +256,11 @@
     if (golpeAntes === null) { golpeAntes = g ? g.n : 0; return; }   // al abrir no salta
     if (!g || g.n === golpeAntes) return;
     golpeAntes = g.n;
-    if (O.modo === 'rotar' && (O.lineas || []).length > 1) { turno = g.i; pintar(); rotar(); }   // muestra la línea de ese regalo
-    const el = todo.querySelector(`.linea[data-i="${g.i}"]`); if (!el) return;
+    if (O.modo === 'rotar' && (O.lineas || []).length > 1) { if (turno % O.lineas.length !== g.i) { turno = g.i; pintar(true); rotar(); setTimeout(() => saltar(g.i), 360); return; } }   // muestra la línea de ese regalo
+    saltar(g.i);
+  }
+  function saltar(i) {
+    const el = todo.querySelector(`.linea[data-i="${i}"]`); if (!el) return;
     el.classList.remove('golpe'); void el.offsetWidth; el.classList.add('golpe');
   }
   pfConnect((m) => {
