@@ -153,13 +153,15 @@
     return box;
   }
   function estilo() {
-    const libre = typeof O.px === 'number' && typeof O.py === 'number';
+    const libre = typeof O.px === 'number' && typeof O.py === 'number' && isFinite(O.px) && isFinite(O.py);
     document.body.className = ['f-' + (O.fuente || 'lucky'), 'e-' + (O.estilo || 'clasico'), 'a-' + (O.anim || 'latido'), 'tp-' + (O.tipo === 'reto' ? 'derecha' : (O.textoPos || 'derecha')), O.alinear === 'izquierda' ? 'izquierda' : '', libre ? 'libre' : ''].join(' ');
     const r = document.documentElement.style;
+    const hex = (c) => /^#[0-9a-f]{6}$/i.test(c || '') ? c : '';
+    if (libre) { O.px = Math.max(0, Math.min(100, O.px)); O.py = Math.max(0, Math.min(100, O.py)); }
     if (libre) { r.setProperty('--px', O.px + '%'); r.setProperty('--py', O.py + '%'); }
-    r.setProperty('--tam', (Number(O.tam) || 80) + 'px');
-    if (O.colorNum) r.setProperty('--num', O.colorNum); else r.removeProperty('--num');
-    if (O.colorTxt) r.setProperty('--txt', O.colorTxt); else r.removeProperty('--txt');
+    r.setProperty('--tam', Math.max(24, Math.min(200, Number(O.tam) || 80)) + 'px');
+    if (hex(O.colorNum)) r.setProperty('--num', O.colorNum); else r.removeProperty('--num');
+    if (hex(O.colorTxt)) r.setProperty('--txt', O.colorTxt); else r.removeProperty('--txt');
   }
   let tCambio = null;
   function pintar(conCambio) {
