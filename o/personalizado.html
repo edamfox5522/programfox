@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Overlay personalizado</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* Overlay personalizado de ProgramFox: letreros como "1 [regalo] = RESET", con contador opcional.
+     Fondo transparente. Fuente recomendada: 1080 × 400 (o lo que necesites). */
+  @font-face { font-family: 'Luckiest Guy'; src: url('fuentes/luckiest-guy.woff2') format('woff2'); font-display: block; }
+  @font-face { font-family: 'Outfit'; font-weight: 800; src: url('fuentes/outfit-latin-800-normal.woff2') format('woff2'); font-display: block; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  :root { --tam: 80px; --num: #ffd23a; --txt: #ffffff; --sep: #ffffff; --caja: #ff2a3c; }
+  body { display: flex; align-items: center; justify-content: center; padding: 10px; }
+  body.izquierda { justify-content: flex-start; }
+  body.f-lucky { font-family: 'Luckiest Guy', 'Arial Black', sans-serif; }
+  body.f-grueso { font-family: 'Arial Black', 'Segoe UI Black', sans-serif; font-weight: 900; }
+  body.f-redondo { font-family: 'Outfit', 'Segoe UI', sans-serif; font-weight: 800; }
+  #todo { display: flex; flex-direction: column; align-items: center; gap: calc(var(--tam) * .22); }
+  body.izquierda #todo { align-items: flex-start; }
+
+  .linea { display: flex; flex-direction: column; align-items: center; gap: calc(var(--tam) * .08); }
+  body.izquierda .linea { align-items: flex-start; }
+  .fila { display: flex; align-items: center; gap: calc(var(--tam) * .16); font-size: var(--tam); line-height: 1; white-space: nowrap; padding: .08em .22em; }
+  .num { color: var(--num); }
+  .sep { color: var(--sep); font-size: .82em; }
+  .txt { color: var(--txt); }
+  .reg { height: 1.15em; width: auto; max-width: 1.6em; object-fit: contain; filter: drop-shadow(0 .05em .06em rgba(0,0,0,.6)); }
+  .reg-emo { font-size: .95em; }
+  .num, .sep, .txt { -webkit-text-stroke: .075em #12101a; paint-order: stroke fill; text-shadow: 0 .07em 0 rgba(0,0,0,.55); }
+
+  /* contador (caja que brilla con el número) */
+  .cont { position: relative; min-width: calc(var(--tam) * 2.6); padding: .1em .5em .02em; font-size: calc(var(--tam) * .95); line-height: 1.05; text-align: center;
+          color: #fff; background: linear-gradient(180deg, color-mix(in srgb, var(--caja) 85%, #fff), var(--caja) 55%, color-mix(in srgb, var(--caja) 70%, #000));
+          clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%); box-shadow: 0 0 .5em var(--caja); filter: drop-shadow(0 0 .25em var(--caja)); }
+  .cont span { display: inline-block; -webkit-text-stroke: .06em rgba(0,0,0,.55); paint-order: stroke fill; text-shadow: 0 .05em 0 rgba(0,0,0,.4); }
+  .cont.sube span { animation: sube .45s cubic-bezier(.2, 1.8, .4, 1); }
+  @keyframes sube { from { transform: scale(1.5); } to { transform: scale(1); } }
+
+  /* ---------- estilos ---------- */
+  .e-neon { --num: #ff5df5; --txt: #e8fdff; --sep: #ff5df5; --caja: #b53dff; }
+  .e-neon .num, .e-neon .sep { -webkit-text-stroke: 0; text-shadow: 0 0 .05em #fff, 0 0 .18em currentColor, 0 0 .4em currentColor; }
+  .e-neon .txt { -webkit-text-stroke: 0; text-shadow: 0 0 .05em #fff, 0 0 .15em #39e6ff, 0 0 .35em #39e6ff, 0 0 .6em #1b9dff; }
+  .e-fuego { --num: #ffe14d; --caja: #ff4d00; }
+  .e-fuego .txt { background: linear-gradient(180deg, #fffbd1, #ffd23a 35%, #ff7a00 70%, #ff3d00); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-stroke: 0; filter: drop-shadow(0 .05em 0 #8a1a00) drop-shadow(0 0 .14em #ff4400); }
+  .e-hielo { --num: #bff4ff; --sep: #dff8ff; --caja: #1aa8ff; }
+  .e-hielo .txt { background: linear-gradient(180deg, #ffffff, #9fe8ff 50%, #2a9dff); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-stroke: 0; filter: drop-shadow(0 0 .1em #4cc9ff) drop-shadow(0 .06em 0 #06334f); }
+  .e-dorado { --num: #fff1b0; --caja: #d99a1b; }
+  .e-dorado .txt, .e-dorado .num { background: linear-gradient(180deg, #fff6c8, #ffd34d 45%, #b97910); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-stroke: 0; filter: drop-shadow(0 .06em 0 #4a2a00) drop-shadow(0 0 .12em rgba(255,200,60,.6)); }
+  .e-comic .fila { background: #ffd23a; border: .06em solid #111; border-radius: .2em; box-shadow: .08em .08em 0 #111; transform: rotate(-1.5deg); }
+  .e-comic { --num: #ff3b3b; --caja: #ff3b3b; }
+  .e-caramelo .fila { background: linear-gradient(90deg, #ff5fa2, #b15cff); border: .05em solid #fff; border-radius: 999px; padding: .12em .45em; }
+  .e-caramelo { --num: #fff; --caja: #ff5fa2; }
+  .e-minimo .num, .e-minimo .sep, .e-minimo .txt { -webkit-text-stroke: 0; text-shadow: 0 .04em .12em rgba(0,0,0,.85); }
+
+  /* ---------- animaciones ---------- */
+  .a-latido .fila { animation: latido 1.6s ease-in-out infinite; }
+  @keyframes latido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .a-flotar .linea { animation: flotar 2.6s ease-in-out infinite; }
+  .a-flotar .linea:nth-child(2n) { animation-delay: -1.3s; }
+  @keyframes flotar { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(calc(var(--tam) * -.08)); } }
+  .a-brillo .fila { animation: brillo 2.4s ease-in-out infinite; }
+  @keyframes brillo { 0%, 70%, 100% { filter: brightness(1); } 80% { filter: brightness(1.55); } }
+  .e-comic.a-latido .fila { animation-name: latidoComic; }
+  @keyframes latidoComic { 0%, 100% { transform: rotate(-1.5deg) scale(1); } 50% { transform: rotate(-1.5deg) scale(1.06); } }
+
+  /* una por una */
+  .entra { animation: entra .55s cubic-bezier(.2, 1.5, .4, 1) both; }
+  @keyframes entra { from { opacity: 0; transform: scale(.55) translateY(.2em); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .fila, .linea, .entra, .cont span { animation: none !important; } }
+</style>
+</head>
+<body class="f-lucky e-clasico a-latido">
+<div id="todo"></div>
+<script src="supabase.js"></script>
+<script src="pf-config.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const ID = (q.get('i') || 'main').slice(0, 20);
+  const todo = document.getElementById('todo');
+  let O = null, clave = '', turno = 0, reloj = null;
+  const cuentasAntes = {};
+
+  const segura = (u) => /^https:\/\//i.test(u || '');
+  function fila(l) {
+    const f = document.createElement('div'); f.className = 'fila';
+    const add = (cls, t) => { if (t === '' || t == null) return; const s = document.createElement('span'); s.className = cls; s.textContent = t; f.appendChild(s); };
+    add('num', l.n);
+    if (segura(l.img)) { const im = document.createElement('img'); im.className = 'reg'; im.src = l.img; im.alt = ''; im.referrerPolicy = 'no-referrer'; im.onerror = () => { const e = document.createElement('span'); e.className = 'reg-emo'; e.textContent = '🎁'; im.replaceWith(e); }; f.appendChild(im); }
+    else if (l.regalo) add('reg-emo', '🎁');
+    add('sep', l.sep);
+    add('txt', l.texto);
+    return f;
+  }
+  function linea(l, i) {
+    const box = document.createElement('div'); box.className = 'linea'; box.dataset.i = i;
+    box.appendChild(fila(l));
+    if (l.contador) {
+      const c = document.createElement('div'); c.className = 'cont';
+      const s = document.createElement('span'); s.textContent = String(Number(l.cuenta) || 0);
+      c.appendChild(s); box.appendChild(c);
+    }
+    return box;
+  }
+  function estilo() {
+    document.body.className = ['f-' + (O.fuente || 'lucky'), 'e-' + (O.estilo || 'clasico'), 'a-' + (O.anim || 'latido'), O.alinear === 'izquierda' ? 'izquierda' : ''].join(' ');
+    const r = document.documentElement.style;
+    r.setProperty('--tam', (Number(O.tam) || 80) + 'px');
+    if (O.colorNum) r.setProperty('--num', O.colorNum); else r.removeProperty('--num');
+    if (O.colorTxt) r.setProperty('--txt', O.colorTxt); else r.removeProperty('--txt');
+  }
+  function pintar() {
+    todo.innerHTML = '';
+    const ls = O.lineas || [];
+    if (O.modo === 'rotar' && ls.length > 1) {
+      const el = linea(ls[turno % ls.length], turno % ls.length); el.classList.add('entra'); todo.appendChild(el);
+    } else ls.forEach((l, i) => todo.appendChild(linea(l, i)));
+  }
+  /** Solo cambió un contador: se actualiza el número sin redibujar (con saltito) */
+  function contadores() {
+    (O.lineas || []).forEach((l, i) => {
+      const k = i + ':' + (Number(l.cuenta) || 0);
+      const el = todo.querySelector(`.linea[data-i="${i}"] .cont`);
+      if (el) {
+        const s = el.querySelector('span');
+        if (s.textContent !== String(Number(l.cuenta) || 0)) { s.textContent = String(Number(l.cuenta) || 0); el.classList.remove('sube'); void el.offsetWidth; el.classList.add('sube'); }
+      }
+      cuentasAntes[i] = k;
+    });
+  }
+  function rotar() {
+    clearInterval(reloj); reloj = null;
+    if (O && O.modo === 'rotar' && (O.lineas || []).length > 1) reloj = setInterval(() => { turno++; pintar(); }, Math.max(1, Number(O.seg) || 4) * 1000);
+  }
+  function poner(o) {
+    if (!o) return;
+    const sinCuenta = JSON.stringify({ ...o, lineas: (o.lineas || []).map(l => ({ ...l, cuenta: 0 })) });
+    O = o;
+    if (sinCuenta !== clave) { clave = sinCuenta; turno = 0; estilo(); pintar(); rotar(); }
+    else contadores();
+  }
+  pfConnect((m) => {
+    if (m.type === 'pers' && m.pers && Array.isArray(m.pers.lista)) {
+      const mio = m.pers.lista.find(x => x.id === ID) || (ID === 'main' ? m.pers.lista[0] : null);
+      if (mio) poner(mio);
+    }
+  }, 'personalizado');
+</script>
+</body>
+</html>
