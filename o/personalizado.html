@@ -68,6 +68,17 @@
   /* una por una */
   .entra { animation: entra .55s cubic-bezier(.2, 1.5, .4, 1) both; }
   @keyframes entra { from { opacity: 0; transform: scale(.55) translateY(.2em); } to { opacity: 1; transform: none; } }
+  /* ---------- reto con cuenta regresiva ---------- */
+  .reloj { font-size: calc(var(--tam) * 1.15); min-width: calc(var(--tam) * 2.4); }
+  .reloj.urge { animation: urge .5s ease-in-out infinite; }
+  @keyframes urge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+  .prog { font-size: calc(var(--tam) * .5); color: #fff; -webkit-text-stroke: .07em #12101a; paint-order: stroke fill; text-shadow: 0 .06em 0 rgba(0,0,0,.55); }
+  .grande { font-size: calc(var(--tam) * 1.35); line-height: 1; white-space: nowrap; padding: .1em .2em; -webkit-text-stroke: .07em #12101a; paint-order: stroke fill; }
+  .grande.salvado { color: #3dff7a; text-shadow: 0 .06em 0 #0b4a1d, 0 0 .3em #2bff6a; animation: pop .6s cubic-bezier(.2, 1.8, .4, 1) both, latido 1.2s ease-in-out .6s infinite; }
+  .grande.reseteo { color: #ff2a3c; text-shadow: 0 .06em 0 #4a0710, 0 0 .3em #ff2a3c; animation: pop .5s cubic-bezier(.2, 1.8, .4, 1) both, tiembla .12s linear .5s infinite; }
+  @keyframes pop { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
+  @keyframes tiembla { 0% { transform: translate(0, 0); } 25% { transform: translate(-.03em, .02em); } 50% { transform: translate(.03em, -.02em); } 75% { transform: translate(-.02em, -.02em); } 100% { transform: translate(0, 0); } }
+  @media (prefers-reduced-motion: reduce) { .grande, .reloj { animation: none !important; } }
   @media (prefers-reduced-motion: reduce) { .fila, .linea, .entra, .cont span { animation: none !important; } }
 </style>
 </head>
@@ -134,9 +145,50 @@
     clearInterval(reloj); reloj = null;
     if (O && O.modo === 'rotar' && (O.lineas || []).length > 1) reloj = setInterval(() => { turno++; pintar(); }, Math.max(1, Number(O.seg) || 4) * 1000);
   }
+  // ---------- reto con cuenta regresiva ----------
+  let fin = 0, tic = null;
+  function pintarReto() {
+    todo.innerHTML = '';
+    const v = O.vivo || { fase: 'espera' };
+    const ls = O.lineas || [];
+    if (v.fase === 'salvado' || v.fase === 'reseteo') {
+      const g = document.createElement('div'); g.className = 'grande ' + v.fase;
+      g.textContent = v.fase === 'salvado' ? (O.txtSalvado || '¡TE SALVASTE!') : (O.txtReset || '¡RESET!');
+      todo.appendChild(g); return;
+    }
+    const l = v.fase === 'cuenta' ? ls[1] : ls[0];
+    if (!l) return;
+    const box = document.createElement('div'); box.className = 'linea';
+    box.appendChild(fila(l));
+    if (v.falta > 1 && v.lleva > 0) { const pr = document.createElement('div'); pr.className = 'prog'; pr.textContent = v.lleva + ' / ' + v.falta; box.appendChild(pr); }
+    if (v.fase === 'cuenta') {
+      const c = document.createElement('div'); c.className = 'cont reloj'; c.id = 'reloj';
+      const sp = document.createElement('span'); c.appendChild(sp); box.appendChild(c);
+    }
+    todo.appendChild(box);
+    ponerReloj();
+  }
+  function ponerReloj() {
+    const c = document.getElementById('reloj'); if (!c) return;
+    const seg = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
+    const t = seg >= 60 ? Math.floor(seg / 60) + ':' + String(seg % 60).padStart(2, '0') : String(seg);
+    const sp = c.querySelector('span');
+    if (sp.textContent !== t) { sp.textContent = t; c.classList.toggle('urge', seg <= 10); }
+  }
+  function reto(o) {
+    const v = o.vivo || { fase: 'espera', restante: 0 };
+    fin = Date.now() + (Number(v.restante) || 0);   // cuenta con el reloj de esta PC
+    const k = JSON.stringify({ ...o, vivo: { fase: v.fase, lleva: v.lleva, falta: v.falta } });
+    O = o;
+    clearInterval(reloj); reloj = null;
+    if (k !== clave) { clave = k; estilo(); pintarReto(); }
+    clearInterval(tic); tic = v.fase === 'cuenta' ? setInterval(ponerReloj, 200) : null;
+  }
   function poner(o) {
     if (!o) return;
-    const sinCuenta = JSON.stringify({ ...o, lineas: (o.lineas || []).map(l => ({ ...l, cuenta: 0 })) });
+    if (o.tipo === 'reto') return reto(o);
+    clearInterval(tic); tic = null;
+    const sinCuenta = JSON.stringify({ ...o, vivo: null, lineas: (o.lineas || []).map(l => ({ ...l, cuenta: 0 })) });
     O = o;
     if (sinCuenta !== clave) { clave = sinCuenta; turno = 0; estilo(); pintar(); rotar(); }
     else contadores();
