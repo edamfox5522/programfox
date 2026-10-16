@@ -72,6 +72,8 @@
   /* cuenta regresiva: solo el número, sin caja */
   .reloj { font-size: calc(var(--tam) * 1.25); line-height: 1; color: var(--txt); -webkit-text-stroke: .075em #12101a; paint-order: stroke fill; text-shadow: 0 .07em 0 rgba(0,0,0,.55); }
   .reloj.urge { color: var(--num); animation: urge .5s ease-in-out infinite; }
+  .fila.salvar .txt { color: #ff2a3c; background: none; -webkit-background-clip: border-box; background-clip: border-box; -webkit-text-stroke: .075em #12101a; paint-order: stroke fill; filter: none; text-shadow: 0 .07em 0 rgba(0,0,0,.55), 0 0 .25em rgba(255,42,60,.55); }
+  .reloj.lento { animation-duration: 1s; }
   .num.sube { display: inline-block; animation: sube .45s cubic-bezier(.2, 1.8, .4, 1); }
   @keyframes urge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
   .grande { font-size: calc(var(--tam) * 1.35); line-height: 1; white-space: nowrap; padding: .1em .2em; -webkit-text-stroke: .07em #12101a; paint-order: stroke fill; }
@@ -151,6 +153,12 @@
   }
   // ---------- reto con cuenta regresiva ----------
   let fin = 0, tic = null, numAntes = null;
+  // los últimos 5 segundos van más lento (cada uno dura 2 de verdad): mismo cálculo que ProgramFox
+  function segMostrar(ms, cuentaSeg) {
+    const l = Math.min(5, Number(cuentaSeg) || 60), lento = l * 2000;
+    if (ms <= 0) return 0;
+    return ms > lento ? l + Math.ceil((ms - lento) / 1000) : Math.ceil(ms / 2000);
+  }
   function pintarReto() {
     todo.innerHTML = '';
     const v = O.vivo || { fase: 'espera' };
@@ -166,7 +174,9 @@
     const box = document.createElement('div'); box.className = 'linea';
     // en SALVAR el número es lo que falta: baja con cada regalo y sube si mandan otra vez el del reset
     const quedan = v.fase === 'cuenta' ? Math.max(1, (Number(v.falta) || 1) - (Number(v.lleva) || 0)) : null;
-    box.appendChild(fila(quedan != null ? { ...l, n: String(quedan) } : l));
+    const f = fila(quedan != null ? { ...l, n: String(quedan) } : l);
+    if (v.fase === 'cuenta') f.classList.add('salvar');   // SALVAR en rojo
+    box.appendChild(f);
     if (quedan != null && numAntes != null && quedan !== numAntes) { const nm = box.querySelector('.num'); if (nm) nm.classList.add('sube'); }
     numAntes = quedan;
     if (v.fase === 'cuenta') {
@@ -178,10 +188,10 @@
   }
   function ponerReloj() {
     const c = document.getElementById('reloj'); if (!c) return;
-    const seg = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
+    const seg = segMostrar(fin - Date.now(), O.cuentaSeg);
     const t = seg >= 60 ? Math.floor(seg / 60) + ':' + String(seg % 60).padStart(2, '0') : String(seg);
     const sp = c.querySelector('span');
-    if (sp.textContent !== t) { sp.textContent = t; c.classList.toggle('urge', seg <= 10); }
+    if (sp.textContent !== t) { sp.textContent = t; c.classList.toggle('urge', seg <= 10); c.classList.toggle('lento', seg <= 5); }
   }
   function reto(o) {
     const v = o.vivo || { fase: 'espera', restante: 0 };
