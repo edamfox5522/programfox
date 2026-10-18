@@ -419,8 +419,8 @@
     planes: [
       { meses: 1, precio: 15 },
       { meses: 3, precio: 40 },
-      { meses: 6, precio: 75 },
-      { meses: 12, precio: 135 }
+      { meses: 6, precio: 80 },
+      { meses: 12, precio: 150 }
     ],
     whatsapp: '573052667718',                                   // tu número con indicativo, sin + ni espacios ('' = no sale)
     precio: '$15'
@@ -447,7 +447,7 @@
   const waUrl = !!CONFIG.whatsapp;   // ¿sale la opción de Colombia?
   const caja = document.querySelector('.js-planes');
   caja.innerHTML = PLANES.map((p, i) => `<button type="button" class="pl" role="tab" data-pl="${i}" aria-selected="${i === 0}">${i === mejor && p.ahorro > 0 ? '<i>MEJOR PRECIO</i>' : ''}
-      <span class="n">${p.nombre}</span><b>${dinero(p.precio)}</b>${p.ahorro > 0 ? `<s>${dinero(p.normal)}</s><em>Ahorras ${dinero(p.ahorro)}</em>` : '<small>pago mensual</small>'}</button>`).join('');
+      <span class="n">${p.nombre}</span><b>${dinero(p.precio)}</b>${p.ahorro > 0 ? `<s>${dinero(p.normal)}</s><em>Ahorras ${dinero(p.ahorro)}</em>` : `<small>${p.meses === 1 ? 'pago mensual' : 'pago único'}</small>`}</button>`).join('');
   function escogerPlan(i) {
     const p = PLANES[i], extra = i > 0 ? ` (plan de ${p.nombre}, ${dinero(p.precio)} USD)` : '';
     caja.querySelectorAll('.pl').forEach(b => b.setAttribute('aria-selected', String(Number(b.dataset.pl) === i)));
