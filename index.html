@@ -36,6 +36,7 @@
   .btn-ghost { background: var(--panel); border-color: var(--line2); color: var(--text); }
   .btn-discord { background: #5865f2; color: #fff; }
   .btn-paypal { background: #ffc439; color: #111; }
+  .btn-whatsapp { background: #22c55e; color: #052e12; }
   .btn svg { width: 19px; height: 19px; }
   .btn-big { padding: 15px 28px; font-size: 17px; border-radius: 13px; }
   .menu-btn { display: none; }
@@ -71,7 +72,7 @@
   .game h3 { margin: 0 0 6px; font-size: 18px; }
   .game p { margin: 0; color: var(--muted); font-size: 14.5px; }
 
-  .feature { display: grid; grid-template-columns: 1fr 1.15fr; gap: 50px; align-items: center; margin-bottom: 70px; }
+  .feature { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 50px; align-items: center; margin-bottom: 70px; }
   .feature.rev { grid-template-columns: 1.15fr 1fr; }
   .feature.rev .ftxt { order: 2; }
   .ftxt h3 { font-size: 30px; margin: 0 0 12px; letter-spacing: -.5px; }
@@ -97,14 +98,78 @@
   .smart em { font-style: normal; background: #fff; color: #111; padding: 4px 10px; border-radius: 3px; font-size: 12px; }
   .smart em.hl { outline: 3px solid #ffd54a; }
 
-  /* ---- Precio ---- */
-  .price-card { max-width: 480px; margin: 0 auto; background: var(--panel); border: 1px solid rgba(255,122,26,.45); border-radius: 22px; padding: 34px; text-align: center; box-shadow: 0 30px 80px rgba(255,122,26,.08); }
-  .price { font-size: 58px; font-weight: 900; letter-spacing: -2px; margin: 6px 0 0; }
-  .price small { font-size: 18px; color: var(--muted); font-weight: 600; letter-spacing: 0; }
-  .price-card ul { text-align: left; list-style: none; padding: 0; margin: 22px 0; display: flex; flex-direction: column; gap: 9px; }
-  .price-card li::before { content: "✓"; color: var(--ok); font-weight: 900; margin-right: 10px; }
-  .buy { display: flex; flex-direction: column; gap: 10px; }
-  .how { color: var(--muted); font-size: 13.5px; margin-top: 14px; }
+  /* ---- Precio: el plan a la izquierda, cómo pagar a la derecha ---- */
+  .price-card { --pp: #ffc439; --dc: #5865f2; --wa: #25d366; max-width: 940px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.15fr;
+    background: var(--panel); border: 1px solid rgba(255,122,26,.4); border-radius: 24px; overflow: hidden; box-shadow: 0 30px 80px rgba(255,122,26,.08); }
+  .plan { padding: 36px 34px; background: radial-gradient(120% 90% at 0% 0%, rgba(255,122,26,.2), transparent 60%), var(--bg2); border-right: 1px solid var(--line); }
+  .plan-name { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; }
+  .plan-name img { width: 34px; height: 34px; border-radius: 9px; }
+  .price { display: flex; align-items: flex-end; gap: 10px; font-size: 64px; font-weight: 900; letter-spacing: -2px; line-height: 1; margin: 22px 0 4px; }
+  .price small { font-size: 15px; line-height: 1.2; color: var(--accent2); font-weight: 700; letter-spacing: 0; padding-bottom: 8px; }
+  .plan-sub { color: var(--muted); font-size: 14px; margin: 0; }
+  .planes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 18px 0 12px; }
+  .pl { all: unset; box-sizing: border-box; cursor: pointer; position: relative; display: flex; flex-direction: column; gap: 1px; padding: 10px 12px; border-radius: 13px;
+    background: var(--panel); border: 1.5px solid var(--line); transition: border-color .15s, background .15s; }
+  .pl:hover { border-color: rgba(255,122,26,.55); }
+  .pl:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .pl[aria-selected="true"] { border-color: var(--accent); background: rgba(255,122,26,.12); }
+  .pl .n { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent2); }
+  .pl b { font-size: 22px; font-weight: 900; line-height: 1.1; }
+  .pl s { position: absolute; right: 12px; top: 28px; font-size: 12px; color: var(--muted); }
+  .pl em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--ok); }
+  .pl small { font-size: 11.5px; color: var(--muted); }
+  .pl i { position: absolute; top: -9px; right: 10px; font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .05em; background: var(--accent); color: #150a02; padding: 2px 8px; border-radius: 999px; }
+  .plan ul { list-style: none; padding: 0; margin: 26px 0 0; display: flex; flex-direction: column; gap: 11px; }
+  .plan li { display: flex; gap: 10px; font-size: 15px; }
+  .plan li::before { content: ""; flex: none; width: 18px; height: 18px; margin-top: 2px; border-radius: 50%; background: rgba(34,197,94,.16) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234ade80' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/11px no-repeat; }
+  .pagar { padding: 32px 30px; }
+  .pagar h3 { margin: 0 0 14px; font-size: 18px; }
+  .rutas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ruta { all: unset; box-sizing: border-box; cursor: pointer; position: relative; display: flex; align-items: center; gap: 11px; padding: 13px 14px;
+    border-radius: 14px; background: var(--bg2); border: 1.5px solid var(--line2); transition: border-color .15s, background .15s; }
+  .ruta:hover { border-color: #4a4a5a; }
+  .ruta:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .ruta[aria-selected="true"] { border-color: var(--accent); background: rgba(255,122,26,.1); }
+  .ruta img { width: 28px; height: 28px; flex: none; object-fit: contain; }
+  .ruta .flag-co { width: 28px; height: 19px; }
+  .ruta > span:not(.ok):not(.flag-co) { min-width: 0; }
+  .ruta b { display: block; font-size: 15px; line-height: 1.2; }
+  .ruta small { color: var(--muted); font-size: 12.5px; }
+  .ruta .ok { position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; transform: scale(0); transition: transform .18s cubic-bezier(.3,1.6,.5,1); }
+  .ruta .ok svg { width: 12px; height: 12px; }
+  .ruta[aria-selected="true"] .ok { transform: scale(1); }
+  .pasos { list-style: none; margin: 22px 0 0; padding: 0; }
+  .paso { position: relative; display: flex; gap: 14px; padding-bottom: 18px; }
+  .paso:last-child { padding-bottom: 0; }
+  .paso:not(:last-child)::after { content: ""; position: absolute; left: 15px; top: 34px; bottom: 3px; width: 2px; border-radius: 2px; background: var(--line2); }
+  .num { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; background: var(--bg2); border: 1.5px solid var(--line2); color: var(--muted); }
+  .paso:first-child .num { background: var(--accent); border-color: var(--accent); color: #150a02; box-shadow: 0 0 0 5px rgba(255,122,26,.15); }
+  .paso-c { flex: 1; min-width: 0; padding-top: 4px; }
+  .paso-c b { display: block; font-size: 15.5px; }
+  .paso-c p { margin: 3px 0 0; color: var(--muted); font-size: 14px; }
+  .paso-c .acc { margin-top: 12px; }
+  .par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .btn-marca { --m: var(--accent); width: 100%; justify-content: flex-start; gap: 12px; padding: 12px 16px 12px 12px; border-radius: 13px; color: #f4f4f8;
+    background: color-mix(in srgb, var(--m) 11%, #1b1b24); border: 1px solid color-mix(in srgb, var(--m) 48%, transparent); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+  .btn-marca:hover { background: color-mix(in srgb, var(--m) 22%, #1b1b24); border-color: var(--m); box-shadow: 0 8px 22px color-mix(in srgb, var(--m) 22%, transparent); }
+  .btn-marca:focus-visible { outline: 2px solid var(--m); outline-offset: 3px; }
+  .btn-marca img { width: 26px; height: 26px; flex: none; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+  .btn-marca span { flex: 1; text-align: center; margin-right: 26px; white-space: normal; }
+  .par .btn-marca span { text-align: left; margin-right: 0; }
+  .btn-marca.paypal { --m: var(--pp); }
+  .btn-marca.discord { --m: var(--dc); }
+  .btn-marca.whatsapp { --m: var(--wa); }
+  .acc .btn-marca.grande { padding-top: 15px; padding-bottom: 15px; font-size: 16.5px; }
+  .pasos.entra { animation: entra .28s cubic-bezier(.2,.8,.3,1); }
+  @keyframes entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .pasos.entra { animation: none; } .ruta .ok { transition: none; } }
+  .flag-co { flex: none; width: 28px; height: 19px; border-radius: 4px; background: linear-gradient(#fcd116 0 50%, #003893 50% 75%, #ce1126 75%); box-shadow: 0 0 0 1px rgba(255,255,255,.15); }
+  @media (max-width: 820px) {
+    .price-card { grid-template-columns: minmax(0, 1fr); }
+    .plan { border-right: 0; border-bottom: 1px solid var(--line); padding: 28px 22px; }
+    .pagar { padding: 26px 18px; }
+  }
+  @media (max-width: 420px) { .rutas, .par { grid-template-columns: 1fr; } .btn-marca span { margin-right: 0; } }
 
   /* ---- Preguntas ---- */
   .faq { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
@@ -268,25 +333,51 @@
 <!-- ======================= PRECIO ======================= -->
 <section id="precio">
   <div class="wrap">
-    <div class="sec-title"><h2>Un solo <span>plan</span>, todo incluido</h2><p>Sin letras pequeñas. Cancelas cuando quieras.</p></div>
+    <div class="sec-title"><h2>Un <span>plan</span>, todo incluido</h2><p>Paga 1 mes, 3 meses, 6 meses o 1 año. Sin letras pequeñas y sin cobros automáticos.</p></div>
     <div class="price-card">
-      <div class="pill">⭐ ProgramFox Pro</div>
-      <div class="price"><span class="js-price">$15</span> <small>USD / mes</small></div>
-      <ul>
-        <li>Todos los juegos (GTA V, Minecraft, Banderas…)</li>
-        <li>Acciones, eventos y perfiles ilimitados</li>
-        <li>Voz del chat y 10 pantallas de overlays</li>
-        <li>Actualizaciones automáticas</li>
-        <li>Soporte en Discord</li>
-      </ul>
-      <div class="buy">
-        <a class="btn btn-paypal btn-big js-paypal" href="#" target="_blank" rel="noopener">Pagar con PayPal</a>
-        <a class="btn btn-discord btn-big js-discord" href="#" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.3 5.3A17 17 0 0 0 15 4l-.5 1a15.6 15.6 0 0 0-5 0L9 4a17 17 0 0 0-4.3 1.3C2 9.4 1.3 13.4 1.7 17.3A17 17 0 0 0 6.9 20l1.1-1.7a11 11 0 0 1-1.7-.8l.4-.3a12.3 12.3 0 0 0 10.6 0l.4.3a11 11 0 0 1-1.7.8l1.1 1.7a17 17 0 0 0 5.2-2.7c.5-4.5-.8-8.5-2-12zM8.7 14.9c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1zm6.6 0c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1z"/></svg>
-          Enviar comprobante en Discord
-        </a>
+      <div class="plan">
+        <div class="plan-name"><img src="img/icon.png" alt="">ProgramFox Pro</div>
+        <div class="price"><span class="js-price">$15</span><small>USD<br><span class="js-per">al mes</span></small></div>
+        <div class="planes js-planes" role="tablist" aria-label="¿Por cuánto tiempo?"></div>
+        <p class="plan-sub">Pago único: no se cobra solo. Si ya tienes cuenta, se suma a tu fecha.</p>
+        <ul>
+          <li>Todos los juegos (GTA V, Minecraft, Banderas…)</li>
+          <li>Acciones, eventos y perfiles ilimitados</li>
+          <li>Voz del chat y 10 pantallas de overlays</li>
+          <li>Mods para juegos de PC</li>
+          <li>Se actualiza solo</li>
+          <li>Soporte en Discord y WhatsApp</li>
+        </ul>
       </div>
-      <p class="how">1. Paga con PayPal · 2. Manda la captura en nuestro Discord · 3. Te creamos tu cuenta en minutos.</p>
+      <div class="pagar">
+        <h3>¿Cómo quieres pagar?</h3>
+        <div class="rutas" role="tablist">
+          <button type="button" class="ruta" role="tab" data-ruta="pp" aria-selected="true">
+            <img src="img/paypal.png" alt=""><span><b>PayPal</b><small>Tarjeta o saldo</small></span>
+            <span class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="#150a02" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          </button>
+          <button type="button" class="ruta js-co" role="tab" data-ruta="co" aria-selected="false">
+            <span class="flag-co" aria-hidden="true"></span><span><b>Desde Colombia</b><small>Pesos, por WhatsApp</small></span>
+            <span class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="#150a02" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          </button>
+        </div>
+        <ol class="pasos" data-para="pp">
+          <li class="paso"><span class="num">1</span><div class="paso-c"><b>Paga <span class="js-paga">$15 USD</span> con PayPal</b><p>Con tarjeta o con tu saldo de PayPal.</p>
+            <div class="acc"><a class="btn btn-marca paypal grande js-paypal" href="#" target="_blank" rel="noopener"><img src="img/paypal.png" alt=""><span>Pagar con PayPal</span></a></div></div></li>
+          <li class="paso"><span class="num">2</span><div class="paso-c"><b>Manda la captura del pago</b><p>En un ticket privado de Discord o por WhatsApp, como prefieras.</p>
+            <div class="acc par">
+              <a class="btn btn-marca discord js-discord" href="#" target="_blank" rel="noopener"><img src="img/discord.png" alt=""><span>Discord</span></a>
+              <a class="btn btn-marca whatsapp js-wa-comp" href="#" target="_blank" rel="noopener"><img src="img/whatsapp.png" alt=""><span>WhatsApp</span></a>
+            </div></div></li>
+          <li class="paso"><span class="num">3</span><div class="paso-c"><b>Te creamos tu cuenta</b><p>Te mandamos tu usuario y contraseña, normalmente en pocos minutos.</p></div></li>
+        </ol>
+        <ol class="pasos js-co" data-para="co" hidden>
+          <li class="paso"><span class="num">1</span><div class="paso-c"><b>Escríbenos por WhatsApp</b><p>El mensaje ya va escrito, solo envíalo.</p>
+            <div class="acc"><a class="btn btn-marca whatsapp grande js-whatsapp" href="#" target="_blank" rel="noopener"><img src="img/whatsapp.png" alt=""><span>Escribir por WhatsApp</span></a></div></div></li>
+          <li class="paso"><span class="num">2</span><div class="paso-c"><b>Paga en pesos</b><p>Te damos los datos para pagar y nos mandas la captura por el mismo chat.</p></div></li>
+          <li class="paso"><span class="num">3</span><div class="paso-c"><b>Te creamos tu cuenta</b><p>Te mandamos tu usuario y contraseña apenas confirmemos el pago.</p></div></li>
+        </ol>
+      </div>
     </div>
   </div>
 </section>
@@ -301,7 +392,8 @@
       <details><summary>¿Cómo se actualiza?</summary><p>Solo. Cuando sacamos una versión nueva, al abrir el programa se descarga e instala automáticamente. Tus acciones y configuraciones no se pierden.</p></details>
       <details><summary>¿Necesito tener GTA V o Minecraft?</summary><p>Solo si quieres usar esos juegos. Para GTA V necesitas la versión de PC en modo historia; para Minecraft, un servidor con el plugin ServerTap (te ayudamos a armarlo).</p></details>
       <details><summary>¿Puedo usarlo en varias cuentas de TikTok?</summary><p>Cada licencia sirve para una cuenta de TikTok. Si cambias de cuenta, escríbenos en Discord y te la cambiamos.</p></details>
-      <details><summary>¿Cómo pago y cuánto tarda la activación?</summary><p>Pagas con PayPal, mandas la captura en nuestro Discord y te creamos tu usuario y contraseña. Normalmente en pocos minutos.</p></details>
+      <details><summary>¿Cómo pago y cuánto tarda la activación?</summary><p>Pagas con PayPal, mandas la captura por Discord o por WhatsApp (como prefieras) y te creamos tu usuario y contraseña. Normalmente en pocos minutos.</p></details>
+      <details><summary>Estoy en Colombia y no puedo pagar con PayPal</summary><p>No hay problema: escríbenos por <a class="js-whatsapp" href="#" target="_blank" rel="noopener" style="color:#4ade80;font-weight:700">WhatsApp</a> y te damos los datos para pagar en pesos. Apenas confirmemos el pago te creamos tu usuario y contraseña.</p></details>
     </div>
   </div>
 </section>
@@ -321,8 +413,16 @@
   const CONFIG = {
     githubUsuario: 'edamfox5522',                               // tu usuario de GitHub (ej: 'edamfox')
     githubRepo: 'programfox',
-    discord: 'https://discord.gg/uxZmrR9UUB',
-    paypal: 'https://www.paypal.me/vanegas5522/15USD',
+    discord: 'https://discord.gg/F8cMygWUwY',
+    paypal: 'https://www.paypal.me/vanegas5522',                 // sin el monto: se pone solo según el plan
+    // planes (precio total en USD); el de 1 mes es el normal
+    planes: [
+      { meses: 1, precio: 15 },
+      { meses: 3, precio: 40 },
+      { meses: 6, precio: 75 },
+      { meses: 12, precio: 135 }
+    ],
+    whatsapp: '573052667718',                                   // tu número con indicativo, sin + ni espacios ('' = no sale)
     precio: '$15'
   };
 
@@ -339,8 +439,43 @@
     }
   });
   document.querySelectorAll('.js-discord').forEach(a => { a.href = CONFIG.discord; });
-  document.querySelectorAll('.js-paypal').forEach(a => { a.href = CONFIG.paypal; });
-  document.querySelectorAll('.js-price').forEach(e => { e.textContent = CONFIG.precio; });
+  // Planes: 1 mes, 3 meses, 6 meses, 1 año (el PayPal y los mensajes cambian según el que escojas)
+  const mes = CONFIG.planes[0].precio / CONFIG.planes[0].meses;
+  const dinero = (n) => '$' + (Math.round(n * 100) % 100 ? n.toFixed(2) : String(Math.round(n)));
+  const PLANES = CONFIG.planes.map(p => ({ ...p, nombre: p.meses === 12 ? '1 año' : p.meses === 1 ? '1 mes' : p.meses + ' meses', normal: mes * p.meses, ahorro: mes * p.meses - p.precio }));
+  const mejor = PLANES.reduce((m, p, i) => (p.precio / p.meses < PLANES[m].precio / PLANES[m].meses ? i : m), 0);
+  const waUrl = !!CONFIG.whatsapp;   // ¿sale la opción de Colombia?
+  const caja = document.querySelector('.js-planes');
+  caja.innerHTML = PLANES.map((p, i) => `<button type="button" class="pl" role="tab" data-pl="${i}" aria-selected="${i === 0}">${i === mejor && p.ahorro > 0 ? '<i>MEJOR PRECIO</i>' : ''}
+      <span class="n">${p.nombre}</span><b>${dinero(p.precio)}</b>${p.ahorro > 0 ? `<s>${dinero(p.normal)}</s><em>Ahorras ${dinero(p.ahorro)}</em>` : '<small>pago mensual</small>'}</button>`).join('');
+  function escogerPlan(i) {
+    const p = PLANES[i], extra = i > 0 ? ` (plan de ${p.nombre}, ${dinero(p.precio)} USD)` : '';
+    caja.querySelectorAll('.pl').forEach(b => b.setAttribute('aria-selected', String(Number(b.dataset.pl) === i)));
+    document.querySelectorAll('.js-price').forEach(e => { e.textContent = dinero(p.precio); });
+    document.querySelectorAll('.js-per').forEach(e => { e.textContent = p.meses === 1 ? 'al mes' : 'por ' + p.nombre; });
+    document.querySelectorAll('.js-paga').forEach(e => { e.textContent = dinero(p.precio) + ' USD'; });
+    document.querySelectorAll('.js-paypal').forEach(a => { a.href = `${CONFIG.paypal.replace(/\/+$/, '')}/${p.precio}USD`; });
+    if (CONFIG.whatsapp) {
+      const co = `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Hola, soy de Colombia y quiero comprar una cuenta de ProgramFox${i > 0 ? ' por ' + p.nombre : ''} pagando en pesos (no puedo pagar con PayPal).`)}`;
+      document.querySelectorAll('.js-whatsapp').forEach(a => { a.href = co; });
+      const comp = `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Hola, ya pagué ProgramFox con PayPal${extra} y te mando el comprobante.`)}`;
+      document.querySelectorAll('.js-wa-comp').forEach(a => { a.href = comp; });
+    }
+  }
+  caja.addEventListener('click', (e) => { const b = e.target.closest('[data-pl]'); if (b) escogerPlan(Number(b.dataset.pl)); });
+  escogerPlan(0);
+  if (!CONFIG.whatsapp) document.querySelectorAll('.js-wa-comp').forEach(a => a.remove());
+  if (!waUrl) document.querySelectorAll('.js-co').forEach(e => e.remove());
+  // ¿Cómo quieres pagar? (si estás en Colombia sale escogido "Desde Colombia")
+  function escogerRuta(id, animar) {
+    document.querySelectorAll('.ruta').forEach(b => b.setAttribute('aria-selected', String(b.dataset.ruta === id)));
+    document.querySelectorAll('.pasos').forEach(ol => {
+      const ver = ol.dataset.para === id; ol.hidden = !ver;
+      if (ver && animar) { ol.classList.remove('entra'); void ol.offsetWidth; ol.classList.add('entra'); }
+    });
+  }
+  document.querySelectorAll('.ruta').forEach(b => b.addEventListener('click', () => escogerRuta(b.dataset.ruta, true)));
+  try { if (waUrl && Intl.DateTimeFormat().resolvedOptions().timeZone === 'America/Bogota') escogerRuta('co', false); } catch (_) {}
   document.querySelectorAll('.js-year').forEach(e => { e.textContent = new Date().getFullYear(); });
 </script>
 </body>
