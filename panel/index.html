@@ -348,7 +348,7 @@ $('pNuevo').onclick = () => {
   abrirHoja(`<h3>Cliente nuevo</h3><p class="sub">La contraseña se inventa sola.</p>
     <label for="nUsuario">Usuario</label><input id="nUsuario" placeholder="ej: juan" autocapitalize="none" spellcheck="false" maxlength="30">
     <label>Días de licencia</label>
-    <div class="chips" id="nDias">${[30, 7, 15, 60, 90].map((d, i) => `<button class="chip ${i === 0 ? 'sel' : ''}" data-d="${d}">${d} días</button>`).join('')}</div>
+    <div class="chips" id="nDias">${[[30, '1 mes'], [90, '3 meses'], [180, '6 meses'], [365, '1 año'], [7, '7 días'], [15, '15 días']].map(([d, t], i) => `<button class="chip ${i === 0 ? 'sel' : ''}" data-d="${d}">${t}</button>`).join('')}</div>
     <label for="nNotas">Notas (solo para ti)</label><input id="nNotas" placeholder="ej: Nequi 13/10 · WhatsApp">
     <label for="nClave">Contraseña</label><input id="nClave" value="${clave}" autocapitalize="none" spellcheck="false">
     <button class="btn pri full" style="margin-top:18px" id="nCrear">Crear cliente</button>
@@ -378,7 +378,7 @@ function abrirCliente(id) {
   abrirHoja(`<h3>${esc(u)}</h3>
     <p class="sub"><span class="punto ${e.cls}" style="display:inline-block;vertical-align:1px;margin-right:6px"></span>${esc(e.txt)}${c.activo_hasta ? ` · hasta ${esc(fecha(c.activo_hasta))}` : ''}</p>
     <div class="sec">Sumar días</div>
-    <div class="grid3">${[30, 7, 1].map((d) => `<button class="btn ok" data-sumar="${d}">+${d} ${d === 1 ? 'día' : 'días'}</button>`).join('')}</div>
+    <div class="grid3">${[[30, '1 mes'], [90, '3 meses'], [180, '6 meses'], [365, '1 año'], [7, '7 días'], [1, '1 día']].map(([d, t]) => `<button class="btn ok" data-sumar="${d}">+${t}</button>`).join('')}</div>
     <div class="sec">Notas (solo para ti)</div>
     <div class="fila"><input id="kNotas" value="${esc(c.notas || '')}" placeholder="ej: Nequi 13/10"><button class="btn" style="flex:0 0 auto" id="kGuardar">Guardar</button></div>
     <div class="sec">Cuenta</div>
