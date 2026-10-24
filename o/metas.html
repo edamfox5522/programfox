@@ -7,6 +7,7 @@
   /* Barras de meta. En el enlace:
        ?m=coins     Meta de Monedas        ?m=likes    Meta de Likes
        ?m=follows   Meta de Seguidores     ?m=combined las 3 turnándose (&t=7 segundos)
+       ?m=taps&e=ID Meta de taps de un evento (entre todos; al cumplirse la meta sube)
      Se ajusta solo al ancho de la fuente (ej: 800 x 200). */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
@@ -48,6 +49,8 @@
   .coins { --c1: #e8b83a; --c2: #c99526; --glow: rgba(255, 196, 60, .55); }
   .likes { --c1: #ff5c93; --c2: #e0336f; --glow: rgba(255, 80, 140, .55); }
   .follows { --c1: #27d8c6; --c2: #13a99a; --glow: rgba(40, 220, 200, .5); }
+  .taps { --c1: #ff7a18; --c2: #ff4f6d; --glow: rgba(255, 122, 24, .55); }
+  .meta.cumplida .label { background: rgba(255, 122, 24, .95); }
 </style>
 </head>
 <body>
@@ -58,14 +61,24 @@
 <script src="pf-conexion.js"></script>
 <script>
   const q = new URLSearchParams(location.search);
-  const MODO = ['coins', 'likes', 'follows', 'combined'].includes(q.get('m')) ? q.get('m') : 'coins';
+  const MODO = ['coins', 'likes', 'follows', 'combined', 'taps'].includes(q.get('m')) ? q.get('m') : 'coins';
+  const EVENTO = String(q.get('e') || '');
   const TURNO = Math.max(3, Number(q.get('t')) || 7) * 1000;
   const INFO = {
     coins: { t: 'Diamantes', i: '💎' },
     likes: { t: 'Likes', i: '❤️' },
-    follows: { t: 'Seguidores', i: '➕' }
+    follows: { t: 'Seguidores', i: '➕' },
+    taps: { t: 'Meta de taps', i: '👆' }
   };
-  const num = (n) => Number(n || 0).toLocaleString('en-US');
+  const num0 = (n) => Number(n || 0).toLocaleString('en-US');
+  // en la meta de taps los números son grandes: 650K / 1M
+  const corto = (n) => {
+    n = Number(n || 0);
+    if (n >= 1e6) return (Math.floor(n / 1e5) / 10).toString().replace(/\.0$/, '') + 'M';
+    if (n >= 1e4) return Math.floor(n / 1e3) + 'K';
+    return num0(n);
+  };
+  const num = (n) => (MODO === 'taps' ? corto(n) : num0(n));
   const stage = document.getElementById('stage');
 
   function ajustar() {
@@ -75,7 +88,7 @@
   addEventListener('resize', ajustar);
   ajustar();
 
-  let M = { coins: { value: 0, target: 5000 }, likes: { value: 0, target: 10000 }, follows: { value: 0, target: 100 } };
+  let M = { coins: { value: 0, target: 5000 }, likes: { value: 0, target: 10000 }, follows: { value: 0, target: 100 }, taps: { value: 0, target: 500000 } };
   let actual = MODO === 'combined' ? 'coins' : MODO;
   let el = null;
 
@@ -109,10 +122,35 @@
   mostrar(actual, true);
 
   function actualizar(metas) {
-    if (!metas) return;
+    if (!metas || MODO === 'taps') return;
     const antes = M[actual].value;
     M = metas;
     pintar(actual, M[actual].value !== antes);
+  }
+
+  // ---- Meta de taps: cuando se cumple, se llena, festeja 3 s y sube a la meta nueva ----
+  let hechas = null, festejando = 0, pendiente = null;
+  function metaTaps(goals) {
+    if (MODO !== 'taps' || !Array.isArray(goals)) return;
+    const g = goals.find(x => x.id === EVENTO) || (EVENTO ? null : goals[0]);
+    if (!g) return;
+    if (hechas !== null && g.hechas > hechas) {
+      hechas = g.hechas;
+      const cumplida = g.target - g.step;
+      M.taps = { value: cumplida, target: cumplida };
+      el.classList.add('cumplida');
+      el.querySelector('.label').innerHTML = '<i>🎉</i>¡Meta cumplida!';
+      pintar('taps', true);
+      pendiente = g;
+      clearTimeout(festejando);
+      festejando = setTimeout(() => { festejando = 0; mostrar('taps', true); M.taps = { value: pendiente.value, target: pendiente.target }; pintar('taps', true); }, 3500);
+      return;
+    }
+    hechas = g.hechas;
+    if (festejando) { pendiente = g; return; }
+    const antes = M.taps.value;
+    M.taps = { value: g.value, target: g.target };
+    pintar('taps', M.taps.value !== antes);
   }
 
   if (MODO === 'combined') {
@@ -123,7 +161,10 @@
     }, TURNO);
   }
 
-  pfConnect((m) => { if (m.type === 'gift-stats' && m.stats) actualizar(m.stats.metas); }, 'metas');
+  pfConnect((m) => {
+    if (m.type === 'gift-stats' && m.stats) actualizar(m.stats.metas);
+    if (m.type === 'tap-goal') metaTaps(m.goals);
+  }, 'metas');
 </script>
 </body>
 </html>

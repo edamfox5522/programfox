@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Música</title>
+<style>
+  /* Tarjeta "Sonando ahora" para OBS / LIVE Studio (sale sola cuando hay una canción). Tamaño: 700 x 170.
+     ?sig=0 → sin "Siguiente"   ?zoom=1.2 → más grande */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; font-family: 'Segoe UI', system-ui, sans-serif; color: #fff; }
+  .stage { width: 700px; height: 170px; position: relative; }
+  .card { position: absolute; inset: 10px; display: flex; align-items: center; gap: 16px; padding: 12px 18px 12px 12px; border-radius: 22px;
+    background: linear-gradient(135deg, rgba(22, 18, 30, .94), rgba(14, 12, 20, .94)); border: 2px solid rgba(255, 122, 24, .55);
+    box-shadow: 0 12px 30px rgba(0,0,0,.45), 0 0 26px rgba(255, 122, 24, .18); transform: translateY(130%); opacity: 0; transition: transform .5s cubic-bezier(.2, 1.2, .4, 1), opacity .3s; }
+  .card.on { transform: none; opacity: 1; }
+  .portada { position: relative; flex: none; width: 112px; height: 112px; border-radius: 16px; overflow: hidden; background: #222 center/cover; box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+  .portada::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, transparent 62%, rgba(0,0,0,.35)); }
+  .eq { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 3px; align-items: flex-end; height: 22px; z-index: 1; }
+  .eq i { width: 5px; border-radius: 3px; background: #ff7a18; animation: eq 1s ease-in-out infinite; }
+  .eq i:nth-child(2) { animation-delay: -.3s; } .eq i:nth-child(3) { animation-delay: -.6s; } .eq i:nth-child(4) { animation-delay: -.15s; }
+  .pausa .eq i { animation-play-state: paused; }
+  @keyframes eq { 0%, 100% { height: 5px; } 50% { height: 22px; } }
+  .info { flex: 1; min-width: 0; display: grid; gap: 3px; }
+  .k { font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #ffa64d; }
+  .t { font-size: 22px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  .q { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #d6d2e0; white-space: nowrap; overflow: hidden; }
+  .q img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+  .q b { color: #fff; overflow: hidden; text-overflow: ellipsis; }
+  .barra { height: 6px; border-radius: 6px; background: rgba(255,255,255,.12); overflow: hidden; margin-top: 4px; }
+  .barra i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ff7a18, #ff4f6d); transition: width 1s linear; }
+  .tiempos { display: flex; justify-content: space-between; font-size: 12px; color: #a9a3b8; font-variant-numeric: tabular-nums; }
+  .sig { font-size: 12px; color: #a9a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sig b { color: #ffd1a6; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="card" id="card">
+    <div class="portada" id="img"><div class="eq"><i></i><i></i><i></i><i></i></div></div>
+    <div class="info">
+      <div class="k" id="k">🎵 Sonando ahora</div>
+      <div class="t" id="t"></div>
+      <div class="q" id="q"></div>
+      <div class="barra"><i id="bar"></i></div>
+      <div class="tiempos"><span id="pos">0:00</span><span id="dur"></span></div>
+      <div class="sig" id="sig"></div>
+    </div>
+  </div>
+</div>
+<script src="pf-config.js"></script>
+<script src="supabase.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const conSig = q.get('sig') !== '0';
+  const $ = (id) => document.getElementById(id);
+  const mmss = (s) => { s = Math.max(0, Math.round(Number(s) || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  function ajustar() { const z = Math.min(innerWidth / 700, innerHeight / 170) * (Number(q.get('zoom')) || 1); $('stage').style.zoom = z > 0 ? z : 1; }
+  addEventListener('resize', ajustar); ajustar();
+  let ultimo = '';
+  function pintar(m) {
+    if (!m) return;
+    const a = m.actual;
+    $('card').classList.toggle('on', !!a);
+    $('card').classList.toggle('pausa', !m.sonando);
+    if (!a) return;
+    if (ultimo !== a.titulo + a.img) {
+      ultimo = a.titulo + a.img;
+      $('img').style.backgroundImage = a.img && /^https:\/\/i\.ytimg\.com\//.test(a.img) ? `url("${a.img}")` : '';
+      $('t').textContent = a.titulo || '';
+      $('q').innerHTML = '';
+      if (a.foto && /^https:\/\//.test(a.foto)) { const im = document.createElement('img'); im.src = a.foto; $('q').appendChild(im); }
+      const sp = document.createElement('span'); sp.textContent = 'Pedida por '; const b = document.createElement('b'); b.textContent = a.quien || 'el streamer'; sp.appendChild(b); $('q').appendChild(sp);
+    }
+    $('k').textContent = m.sonando ? '🎵 Sonando ahora' : '⏸ En pausa';
+    $('bar').style.width = m.dur > 0 ? Math.min(100, (m.pos / m.dur) * 100) + '%' : '0%';
+    $('pos').textContent = mmss(m.pos); $('dur').textContent = m.dur > 0 ? mmss(m.dur) : '';
+    const s = (m.siguientes || [])[0];
+    $('sig').textContent = '';
+    if (conSig && s) { $('sig').append('Siguiente: '); const b = document.createElement('b'); b.textContent = s.titulo; $('sig').append(b); }
+  }
+  pfConnect((m) => { if (m.type === 'musica') pintar(m.musica); }, 'musica');
+</script>
+</body>
+</html>
