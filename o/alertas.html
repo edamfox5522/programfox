@@ -4,25 +4,112 @@
 <meta charset="utf-8">
 <title>ProgramFox - Alertas</title>
 <style>
+  @font-face { font-family: 'Outfit'; font-weight: 800; src: url('fuentes/outfit-latin-800-normal.woff2') format('woff2'); font-display: swap; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
-  body { font-family: "Segoe UI", "Arial Black", system-ui, sans-serif; color: #fff; }
+  body { font-family: "Outfit", "Segoe UI", "Arial Black", system-ui, sans-serif; color: #fff; }
   .stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-  .alert {
-    display: flex; flex-direction: column; align-items: center; gap: 1.6vh;
-    max-width: 86vw; padding: 3vh 4vh; border-radius: 3vh; text-align: center;
-    background: rgba(15, 12, 22, .82); border: .35vh solid var(--c, #ff7a18);
-    box-shadow: 0 0 4vh var(--c, #ff7a18);
-    animation: pop .5s cubic-bezier(.2, 1.5, .4, 1);
+
+  /* ---------- base ---------- */
+  .al { --c: #ff7a18; --s: 1; position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(1.6vh * var(--s)); max-width: 86vw; text-align: center; }
+  .al .media { max-width: 60vw; max-height: calc(34vh * var(--s)); border-radius: 1.6vh; display: block; }
+  .al .txt { font-size: calc(4.6vh * var(--s)); font-weight: 800; line-height: 1.18; text-shadow: 0 .3vh .9vh rgba(0,0,0,.85); max-width: 80vw; overflow-wrap: anywhere; }
+  .al .txt .w { display: inline-block; white-space: pre; }
+  .al .nm { color: var(--c); filter: brightness(1.25); }
+
+  /* foto del usuario */
+  .ava { position: relative; width: calc(15vh * var(--s)); height: calc(15vh * var(--s)); flex: none; }
+  .ava .foto { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; border: calc(.55vh * var(--s)) solid var(--c);
+    box-shadow: 0 0 0 calc(.35vh * var(--s)) rgba(0,0,0,.55), 0 0 calc(4vh * var(--s)) var(--c); background: #1c1626; display: grid; place-items: center; }
+  .ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ava .letra { font-size: calc(7vh * var(--s)); font-weight: 800; color: #fff; text-shadow: 0 .4vh 1vh rgba(0,0,0,.6);
+    background: radial-gradient(circle at 30% 25%, var(--cl), var(--c) 55%, var(--cd)); width: 100%; height: 100%; display: grid; place-items: center; }
+
+  /* confeti */
+  .fx { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+  .fx i { position: absolute; left: 0; top: 0; width: calc(1.1vh * var(--s)); height: calc(1.8vh * var(--s)); border-radius: .3vh; background: var(--k);
+    opacity: 0; animation: chispa 1.3s cubic-bezier(.15,.7,.3,1) var(--d, .45s) forwards; }
+  @keyframes chispa {
+    0% { opacity: 1; transform: translate(-50%, -50%) rotate(0) scale(.4); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(var(--r)) scale(1); }
   }
-  .alert.out { animation: bye .4s ease-in forwards; }
-  .alert.media-only { background: none; border: none; box-shadow: none; padding: 0; }
-  .alert.media-only img, .alert.media-only video { max-width: 90vw; max-height: 80vh; border-radius: 0; }
-  .alert img, .alert video { max-width: 70vw; max-height: 38vh; border-radius: 1.5vh; }
-  .alert .av { width: 9vh; height: 9vh; border-radius: 50%; object-fit: cover; border: .4vh solid var(--c, #ff7a18); }
-  .alert .txt { font-size: 4.6vh; font-weight: 900; text-shadow: 0 .3vh .8vh #000; line-height: 1.2; }
-  @keyframes pop { from { opacity: 0; transform: scale(.4) translateY(6vh); } }
-  @keyframes bye { to { opacity: 0; transform: scale(.8) translateY(-4vh); } }
+
+  /* onda al aterrizar */
+  .onda { position: absolute; inset: 0; border-radius: 50%; border: calc(.5vh * var(--s)) solid var(--c); opacity: 0; pointer-events: none; }
+
+  /* ===== Estilo: Tarjeta ===== */
+  .s-tarjeta { padding: calc(3vh * var(--s)) calc(4.5vh * var(--s)); border-radius: 3vh; background: rgba(15,12,22,.86);
+    border: .35vh solid var(--c); box-shadow: 0 0 4vh var(--c), inset 0 0 3vh rgba(255,255,255,.04); animation: tPop .55s cubic-bezier(.2,1.5,.4,1) both; }
+  .s-tarjeta .ava .foto { animation: latido 1.6s ease-in-out .6s infinite; }
+  @keyframes tPop { from { opacity: 0; transform: scale(.4) translateY(6vh); } }
+  @keyframes latido { 50% { box-shadow: 0 0 0 calc(.35vh * var(--s)) rgba(0,0,0,.55), 0 0 calc(7vh * var(--s)) var(--c); } }
+  .s-tarjeta.out { animation: tFuera .4s ease-in forwards; }
+  @keyframes tFuera { to { opacity: 0; transform: scale(.8) translateY(-4vh); } }
+
+  /* ===== Estilo: Rebote (la foto cae y rebota) ===== */
+  .s-rebote .ava { width: calc(19vh * var(--s)); height: calc(19vh * var(--s)); animation: caer .9s cubic-bezier(.3,0,.2,1) both; }
+  .s-rebote .onda { animation: onda .9s ease-out .55s; }
+  .s-rebote .txt { background: rgba(12,10,18,.78); border: .3vh solid var(--c); border-radius: 10vh; padding: calc(1.2vh * var(--s)) calc(3.4vh * var(--s)); }
+  .s-rebote .txt .w { opacity: 0; animation: palabra .45s cubic-bezier(.2,1.6,.4,1) forwards; animation-delay: calc(.7s + var(--i) * .07s); }
+  @keyframes caer {
+    0% { transform: translateY(-75vh) scale(.7); }
+    55% { transform: translateY(0) scale(1.12, .86); }
+    70% { transform: translateY(-5vh) scale(.95, 1.06); }
+    85% { transform: translateY(0) scale(1.04, .96); }
+    100% { transform: translateY(0) scale(1); }
+  }
+  @keyframes onda { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(2.1); } }
+  @keyframes palabra { from { opacity: 0; transform: translateY(2.5vh) scale(.5); } to { opacity: 1; transform: none; } }
+  .s-rebote.out { animation: bajar .45s ease-in forwards; }
+  @keyframes bajar { to { opacity: 0; transform: translateY(8vh) scale(.85); } }
+
+  /* ===== Estilo: Banner (entra de lado y la foto rueda) ===== */
+  .s-banner { flex-direction: row; gap: calc(2.2vh * var(--s)); text-align: left; padding: calc(1.2vh * var(--s)) calc(4vh * var(--s)) calc(1.2vh * var(--s)) calc(1.2vh * var(--s));
+    border-radius: 12vh; background: linear-gradient(90deg, var(--cb) 0%, rgba(14,11,20,.9) 45%);
+    border: .35vh solid var(--c); box-shadow: 0 1vh 4vh rgba(0,0,0,.5), 0 0 3vh var(--ca);
+    animation: entrarLado .7s cubic-bezier(.2,1.25,.4,1) both; }
+  .s-banner .media { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 1.5vh; }
+  .s-banner .ava { width: calc(12vh * var(--s)); height: calc(12vh * var(--s)); animation: rodar .8s cubic-bezier(.2,1,.4,1) both; }
+  .s-banner .txt { max-width: 62vw; animation: aparecer .5s ease-out .45s both; }
+  @keyframes entrarLado { from { transform: translateX(-110vw); } }
+  @keyframes rodar { from { transform: translateX(-30vh) rotate(-540deg); } }
+  @keyframes aparecer { from { opacity: 0; transform: translateX(-3vh); } }
+  .s-banner.out { animation: salirLado .5s cubic-bezier(.6,0,.8,.4) forwards; }
+  @keyframes salirLado { to { transform: translateX(110vw); } }
+
+  /* ===== Estilo: Moneda (la foto gira como moneda) ===== */
+  .s-moneda { perspective: 120vh; }
+  .s-moneda .ava { width: calc(18vh * var(--s)); height: calc(18vh * var(--s)); animation: moneda 1.3s cubic-bezier(.2,.8,.3,1) both; }
+  .s-moneda .ava .foto::after { content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.65) 50%, transparent 65%); background-size: 250% 100%;
+    animation: brillo 1.4s ease-in-out 1.2s; background-position: 150% 0; }
+  .s-moneda .txt { animation: subir .6s cubic-bezier(.2,1.4,.4,1) .9s both; }
+  @keyframes moneda { 0% { opacity: 0; transform: scale(.2) rotateY(0); } 25% { opacity: 1; } 100% { transform: scale(1) rotateY(1080deg); } }
+  @keyframes brillo { from { background-position: 150% 0; } to { background-position: -60% 0; } }
+  @keyframes subir { from { opacity: 0; transform: translateY(5vh); } }
+  .s-moneda.out { animation: girarFuera .5s ease-in forwards; }
+  @keyframes girarFuera { to { opacity: 0; transform: scale(.6) rotate(12deg); } }
+
+  /* ===== Estilo: Neón ===== */
+  .s-neon .ava { width: calc(17vh * var(--s)); height: calc(17vh * var(--s)); animation: tPop .6s cubic-bezier(.2,1.5,.4,1) both; }
+  .s-neon .ava::before { content: ''; position: absolute; inset: calc(-1.1vh * var(--s)); border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--c), transparent 30%, #fff 50%, transparent 70%, var(--c));
+    filter: blur(.25vh) drop-shadow(0 0 1.5vh var(--c)); animation: girar 1.6s linear infinite; }
+  .s-neon .ava .foto { border-color: #fff; box-shadow: 0 0 calc(3vh * var(--s)) var(--c); }
+  .s-neon .txt { color: #fff; text-shadow: 0 0 .6vh #fff, 0 0 1.8vh var(--c), 0 0 4vh var(--c), 0 0 7vh var(--c); animation: parpadeo 1.1s linear .35s both; }
+  .s-neon .nm { color: #fff; filter: none; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  @keyframes parpadeo { 0% { opacity: 0; } 10% { opacity: 1; } 15% { opacity: .2; } 25% { opacity: 1; } 32% { opacity: .35; } 45%, 100% { opacity: 1; } }
+  .s-neon.out { animation: apagar .45s steps(4) forwards; }
+  @keyframes apagar { to { opacity: 0; } }
+
+  /* solo imagen / video (acción "Mostrar IMG / GIF / VIDEO") */
+  .al.media-only { animation: tPop .5s cubic-bezier(.2,1.5,.4,1) both; }
+  .al.media-only .media { max-width: 90vw; max-height: 80vh; border-radius: 0; }
+  .al.media-only.out { animation: tFuera .4s ease-in forwards; }
+
+  @media (prefers-reduced-motion: reduce) { .al, .al * { animation-duration: .01s !important; animation-delay: 0s !important; } }
 </style>
 </head>
 <body>
@@ -33,37 +120,132 @@
 <script>
   // Las alertas se muestran una por una (en cola), sin taparse entre sí.
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const q = new URLSearchParams(location.search);
   // Pantalla de este overlay: /alertas?screen=2  (sin nada = pantalla 1; screen=all = todas)
-  const SCREEN = new URLSearchParams(location.search).get('screen') || '1';
+  const SCREEN = q.get('screen') || '1';
+  // Vista previa dentro del editor de acciones (no se conecta: solo muestra lo que manda el editor)
+  const EDITOR = q.get('editor') === '1';
+  const ESTILOS = ['tarjeta', 'rebote', 'banner', 'moneda', 'neon'];
+  const TAM = { chico: .78, normal: 1, grande: 1.3 };
+  const COLORES_CONFETI = ['#ffd23a', '#ff4d6d', '#4dd2ff', '#7dff6a', '#ffffff'];
   const queue = [];
-  let busy = false;
+  let busy = false, actual = null, timer = 0;
+
+  const color = (c) => (/^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? c : '#ff7a18');
+  const fotoOk = (u) => /^(https?:|\/)/i.test(String(u || ''));
+
+  // Texto palabra por palabra; el nombre del usuario sale resaltado con el color
+  function textoHtml(texto, nombres) {
+    texto = String(texto || '');
+    const ns = nombres.filter(n => n && n.length > 0).sort((a, b) => b.length - a.length);
+    let partes = [{ t: texto, nm: false }];
+    for (const n of ns) {
+      partes = partes.flatMap(p => {
+        if (p.nm) return [p];
+        const trozos = p.t.split(n), out = [];
+        trozos.forEach((t, i) => { if (i) out.push({ t: n, nm: true }); if (t) out.push({ t, nm: false }); });
+        return out;
+      });
+    }
+    let i = 0;
+    return partes.map(p => p.nm
+      ? `<span class="w nm" style="--i:${i++}">${esc(p.t)}</span>`
+      : p.t.split(/(\s+)/).map(w => (/^\s+$/.test(w) ? w.replace(/\n/g, '<br>') : w ? `<span class="w" style="--i:${i++}">${esc(w)}</span>` : '')).join('')
+    ).join('');
+  }
+
+  // tonos del color (más claro, más oscuro, transparente) sin color-mix: sirve en OBS viejos
+  function tonos(div, hex) {
+    let h = hex.slice(1);
+    if (h.length <= 4) h = h.split('').map(x => x + x).join('');
+    const rgb = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0);
+    const mezcla = (o, t) => 'rgb(' + rgb.map((v, i) => Math.round(v + (o[i] - v) * t)).join(',') + ')';
+    div.style.setProperty('--c', 'rgb(' + rgb.join(',') + ')');
+    div.style.setProperty('--cl', mezcla([255, 255, 255], .3));
+    div.style.setProperty('--cd', mezcla([0, 0, 0], .55));
+    div.style.setProperty('--cb', mezcla([18, 14, 26], .62));
+    div.style.setProperty('--ca', 'rgba(' + rgb.join(',') + ',.6)');
+  }
+
+  function confeti(div) {
+    const fx = document.createElement('div');
+    fx.className = 'fx';
+    let h = '';
+    for (let k = 0; k < 28; k++) {
+      const ang = Math.random() * Math.PI * 2, dist = 12 + Math.random() * 22;
+      h += `<i style="--x:${(Math.cos(ang) * dist).toFixed(1)}vh;--y:${(Math.sin(ang) * dist - 4).toFixed(1)}vh;--r:${Math.round(Math.random() * 720 - 360)}deg;--k:${COLORES_CONFETI[k % COLORES_CONFETI.length]};--d:${div.dataset.golpe}s"></i>`;
+    }
+    fx.innerHTML = h;
+    (div.querySelector('.ava') || div).appendChild(fx);
+  }
+
+  function pintar(a) {
+    const stage = document.getElementById('stage');
+    const estilo = ESTILOS.includes(a.anim) ? a.anim : 'tarjeta';
+    const isVideo = a.isVideo || /\.(mp4|webm)(\?|$)/i.test(a.image || '');
+    const media = a.image
+      ? (isVideo ? `<video class="media" src="${esc(a.image)}" autoplay ${a.mediaOnly ? '' : 'muted'} playsinline></video>` : `<img class="media" src="${esc(a.image)}" alt="">`)
+      : '';
+    const div = document.createElement('div');
+    tonos(div, color(a.color));
+    if (a.mediaOnly) {
+      div.className = 'al media-only';
+      div.innerHTML = media;
+    } else {
+      div.className = 'al s-' + estilo;
+      div.style.setProperty('--s', TAM[a.tam] || 1);
+      // si es una alerta vieja sin "foto": la foto sale cuando no hay imagen (como antes)
+      const conFoto = a.foto === undefined ? !a.image : !!a.foto;
+      const nombre = String(a.nombre || a.usuario || '').trim();
+      let ava = '';
+      if (conFoto && (fotoOk(a.avatar) || nombre)) {
+        const letra = esc((Array.from(nombre.replace(/^[^\p{L}\p{N}]+/u, ''))[0] || Array.from(nombre)[0] || '?').toUpperCase());
+        ava = `<div class="ava"><div class="onda"></div><div class="foto">${fotoOk(a.avatar) ? `<img src="${esc(a.avatar)}" alt="" data-letra="${letra}">` : `<div class="letra">${letra}</div>`}</div></div>`;
+      }
+      const txt = a.text ? `<div class="txt">${textoHtml(a.text, [a.nombre, a.usuario])}</div>` : '';
+      div.innerHTML = media + ava + txt;
+      div.dataset.golpe = { rebote: .5, moneda: 1.1, banner: .55, neon: .35, tarjeta: .35 }[estilo];
+      if (a.confeti !== false && ava) confeti(div);
+      // si la foto de TikTok ya no carga, se pone la letra
+      const im = div.querySelector('.ava img');
+      if (im) im.addEventListener('error', () => { const l = document.createElement('div'); l.className = 'letra'; l.textContent = im.dataset.letra; im.replaceWith(l); });
+    }
+    stage.appendChild(div);
+    return div;
+  }
+
+  function quitar(div, cb) {
+    if (!div) return cb && cb();
+    div.classList.add('out');
+    setTimeout(() => { div.remove(); cb && cb(); }, 500);
+  }
 
   function next() {
     if (busy || !queue.length) return;
     busy = true;
     const a = queue.shift();
-    const stage = document.getElementById('stage');
-    const isVideo = a.isVideo || /\.(mp4|webm)(\?|$)/i.test(a.image || '');
-    const media = a.image
-      ? (isVideo ? `<video src="${esc(a.image)}" autoplay ${a.mediaOnly ? '' : 'muted'} playsinline></video>` : `<img src="${esc(a.image)}">`)
-      : (a.avatar ? `<img class="av" src="${esc(a.avatar)}">` : '');
-    const div = document.createElement('div');
-    div.className = 'alert' + (a.mediaOnly ? ' media-only' : '');
-    div.style.setProperty('--c', a.color || '#ff7a18');
-    div.innerHTML = `${media}${a.text ? `<div class="txt">${esc(a.text)}</div>` : ''}`;
-    stage.appendChild(div);
-    setTimeout(() => {
-      div.classList.add('out');
-      setTimeout(() => { div.remove(); busy = false; next(); }, 400);
-    }, Math.max(1, a.duration || 5) * 1000);
+    actual = pintar(a);
+    timer = setTimeout(() => quitar(actual, () => { actual = null; busy = false; next(); }), Math.max(1, a.duration || 5) * 1000);
   }
 
-  pfConnect((m) => {
-    if (m.type === 'alert' && (SCREEN === 'all' || String(m.screen || 1) === SCREEN)) {
-      if (queue.length < 50) queue.push({ ...m, image: pfMedia(m.image) });
+  if (EDITOR) {
+    // el editor manda la alerta de muestra; se muestra enseguida (sin fila)
+    window.addEventListener('message', (e) => {
+      if (e.source !== window.parent || !e.data || e.data.type !== 'pf-alerta-prev') return;
+      clearTimeout(timer);
+      if (actual) actual.remove();
+      busy = false; queue.length = 0;
+      queue.push(e.data.alerta || {});
       next();
-    }
-  }, 'alertas');
+    });
+  } else {
+    pfConnect((m) => {
+      if (m.type === 'alert' && (SCREEN === 'all' || String(m.screen || 1) === SCREEN)) {
+        if (queue.length < 50) queue.push({ ...m, image: pfMedia(m.image) });
+        next();
+      }
+    }, 'alertas');
+  }
 </script>
 </body>
 </html>
