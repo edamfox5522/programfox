@@ -34,6 +34,10 @@
   .pts-nom { font-size: calc(3.9vh * var(--s)); font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56vw; }
   .pts-p { font-size: calc(3vh * var(--s)); color: #cfcfda; white-space: nowrap; }
   .pts-p b { color: var(--c); filter: brightness(1.2); font-weight: 800; }
+  /* nivel de puntos (sube con todo lo que ha ganado) */
+  .pts-lv { display: inline-block; margin-right: 1.2vh; color: #4fd2ff; font-weight: 800; }
+  .pts-nota { margin-top: .6vh; font-size: calc(2.5vh * var(--s)); font-weight: 800; color: #ff6b6b; }
+  .pts.sin-fondo .pts-nota { text-shadow: 0 .25vh 0 #000, .2vh 0 0 #000, -.2vh 0 0 #000, 0 .4vh 1.2vh rgba(0,0,0,.9); }
 
   /* SIN FONDO: solo las filas, con sombra para que se lean sobre el juego */
   .pts.sin-fondo { background: none; border: none; box-shadow: none !important; padding-left: 0; padding-right: 0; }
@@ -110,7 +114,7 @@
     return `<div class="pts-fila${pos === 1 ? ' con-corona' : ''}" data-k="${esc(f.u || nombre)}" style="--i:${i};${m}">
       <div class="pts-pos">${pos ? pos + '.' : '—'}</div>
       <div class="pts-ava"><div class="foto">${fotoOk(f.f) ? `<img src="${esc(f.f)}" alt="" data-letra="${letra}">` : `<div class="letra">${letra}</div>`}</div>${corona}</div>
-      <div class="pts-txt"><div class="pts-nom">${esc(nombre)}</div><div class="pts-p"><b>${esc(f.pts)}</b> puntos</div></div>
+      <div class="pts-txt"><div class="pts-nom">${Number(f.lv) > 0 ? `<span class="pts-lv">${Number(f.lv)}</span>` : ''}${esc(nombre)}</div><div class="pts-p"><b>${esc(f.pts)}</b> puntos</div>${f.nota ? `<div class="pts-nota">${esc(f.nota)}</div>` : ''}</div>
     </div>`;
   }
   function arreglarFotos(div) {
