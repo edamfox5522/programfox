@@ -63,6 +63,19 @@
   @keyframes entrarLado { from { transform: translateX(-110vw); } }
   @keyframes salirLado { to { transform: translateX(110vw); } }
   @keyframes voltear { from { opacity: 0; transform: perspective(120vh) rotateY(-110deg) scale(.8); } }
+  /* ===== !canjes: lista de lo que se puede canjear ===== */
+  .pts.cj { min-width: calc(58vh * var(--s)); }
+  .cj-fila { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: calc(2vh * var(--s)); padding: calc(1.2vh * var(--s)) 0; }
+  .entra .cj-fila { opacity: 0; animation: ptsFila .5s cubic-bezier(.2,1.3,.4,1) forwards; animation-delay: calc(.35s + var(--i) * .1s); }
+  .cj-fila + .cj-fila { border-top: .15vh solid rgba(255,255,255,.07); }
+  .cj-cmd { min-width: calc(13vh * var(--s)); text-align: center; box-sizing: border-box; font-size: calc(3.2vh * var(--s)); font-weight: 800; color: #1a0c00; background: var(--c); border-radius: 1.2vh; padding: calc(.5vh * var(--s)) calc(1.6vh * var(--s)); white-space: nowrap; box-shadow: 0 .4vh 1.2vh rgba(0,0,0,.35); }
+  .cj-nom { font-size: calc(3vh * var(--s)); font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cj-precio { font-size: calc(2.8vh * var(--s)); color: #cfcfda; white-space: nowrap; text-align: right; }
+  .cj-precio b { color: var(--c); filter: brightness(1.2); font-size: 1.15em; margin-right: .4vh; }
+  .cj-precio em { font-style: normal; color: #4fd2ff; font-weight: 800; margin-right: 1.4vh; font-size: .85em; }
+  .pts.sin-fondo .cj-nom, .pts.sin-fondo .cj-precio { color: #fff; text-shadow: 0 .25vh 0 #000, 0 -.15vh 0 #000, .2vh 0 0 #000, -.2vh 0 0 #000, 0 .4vh 1.2vh rgba(0,0,0,.9); }
+  .pts.sin-fondo .cj-fila + .cj-fila { border-top: none; }
+
   /* cuando cambian los puntos en el top fijo */
   .pts-fila.sube .pts-p b { animation: brilla .9s ease-out; }
   @keyframes brilla { 0% { filter: brightness(2.4); text-shadow: 0 0 2vh var(--c); } }
@@ -85,7 +98,7 @@
   // /puntos?ver=top → cuando alguien escribe !top (o siempre visible, si lo activas en ProgramFox)
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const q = new URLSearchParams(location.search);
-  const VER = q.get('ver') === 'top' ? 'top' : 'yo';
+  const VER = ['top', 'canjes'].includes(q.get('ver')) ? q.get('ver') : 'yo';
   const EDITOR = q.get('editor') === '1';
   const ESTILOS = ['tarjeta', 'rebote', 'banner', 'moneda', 'neon'];
   const TAM = { chico: .78, normal: 1, grande: 1.3 };
@@ -132,6 +145,19 @@
     div.className = 'pts pa-' + estilo + (m.fondo === false ? ' sin-fondo' : '') + (entra ? ' entra' : '');
     tonos(div, color(m.color));
     div.style.setProperty('--s', TAM[m.tam] || 1);
+    if (m.canjes) {
+      // lista de lo que se puede canjear: comando · qué hace · precio
+      const k = m.canjes;
+      div.classList.add('cj');
+      div.innerHTML = (k.titulo ? `<div class="pts-titulo">${esc(k.titulo)}</div>` : '') + (k.items || []).slice(0, 10).map((x, i) => `
+        <div class="cj-fila" style="--i:${i}">
+          <span class="cj-cmd">${esc(x.cmd)}</span>
+          <span class="cj-nom">${esc(x.n)}</span>
+          <span class="cj-precio">${Number(x.nv) > 0 ? `<em>nv ${Number(x.nv)}+</em>` : ''}<b>${esc(x.costo)}</b> pts</span>
+        </div>`).join('');
+      if (m.confeti && entra) confeti(div);
+      return div;
+    }
     const t = m.tabla || {};
     div.innerHTML = (t.titulo ? `<div class="pts-titulo">${esc(t.titulo)}</div>` : '') + (t.filas || []).slice(0, 10).map(filaHtml).join('');
     arreglarFotos(div);
