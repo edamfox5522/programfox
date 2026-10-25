@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Puntos</title>
+<style>
+  @font-face { font-family: 'Outfit'; font-weight: 800; src: url('fuentes/outfit-latin-800-normal.woff2') format('woff2'); font-display: swap; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+  body { font-family: "Outfit", "Segoe UI", "Arial Black", system-ui, sans-serif; color: #fff; }
+  .stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+
+  /* ===== Tarjeta de puntos ===== */
+  .pts { --c: #ffb020; --s: 1; position: relative; display: flex; flex-direction: column; min-width: calc(46vh * var(--s)); max-width: 92vw;
+    padding: calc(2.4vh * var(--s)) calc(3.4vh * var(--s)) calc(1.4vh * var(--s));
+    border-radius: 2.6vh; background: linear-gradient(160deg, rgba(30,26,40,.94), rgba(14,12,20,.94)); border: .3vh solid var(--c);
+    box-shadow: 0 1.4vh 5vh rgba(0,0,0,.55), 0 0 3vh var(--ca); }
+  .pts-titulo { display: flex; align-items: center; gap: 1vh; font-size: calc(2.3vh * var(--s)); font-weight: 800; letter-spacing: .3vh; text-transform: uppercase; color: var(--c); margin-bottom: calc(1.4vh * var(--s)); }
+  .pts-titulo::after { content: ''; flex: 1; height: .25vh; border-radius: 1vh; background: linear-gradient(90deg, var(--c), transparent); }
+  .pts-fila { display: grid; grid-template-columns: calc(6.4vh * var(--s)) calc(11vh * var(--s)) minmax(0, 1fr); align-items: center; gap: calc(2vh * var(--s));
+    padding: calc(1.5vh * var(--s)) 0 calc(1vh * var(--s)); }
+  .entra .pts-fila { opacity: 0; animation: ptsFila .5s cubic-bezier(.2,1.3,.4,1) forwards; animation-delay: calc(.35s + var(--i) * .13s); }
+  .pts-fila + .pts-fila { border-top: .15vh solid rgba(255,255,255,.07); }
+  .pts-fila.con-corona { padding-top: calc(4.2vh * var(--s)); }
+  @keyframes ptsFila { from { opacity: 0; transform: translateX(-5vh); } to { opacity: 1; transform: none; } }
+  .pts-pos { font-size: calc(4.8vh * var(--s)); font-weight: 800; color: #fff; text-shadow: 0 .3vh .8vh rgba(0,0,0,.6); text-align: right; }
+  .pts-ava { position: relative; width: calc(11vh * var(--s)); height: calc(11vh * var(--s)); }
+  .pts-ava .foto { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; border: calc(.45vh * var(--s)) solid var(--m, var(--c)); background: #2a2436; display: grid; place-items: center; box-shadow: 0 .6vh 2vh rgba(0,0,0,.45); }
+  .pts-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pts-ava .letra { width: 100%; height: 100%; display: grid; place-items: center; font-size: calc(4.6vh * var(--s)); font-weight: 800; color: #fff; background: radial-gradient(circle at 30% 25%, var(--cl), var(--c) 55%, var(--cd)); }
+  .pts-corona { position: absolute; left: -12%; top: -38%; width: 72%; transform: rotate(-16deg); filter: drop-shadow(0 .4vh .6vh rgba(0,0,0,.5)); animation: corona 2.4s ease-in-out 1s infinite; }
+  @keyframes corona { 50% { transform: rotate(-10deg) translateY(-.6vh); } }
+  .pts-txt { min-width: 0; display: flex; flex-direction: column; gap: .3vh; }
+  .pts-nom { font-size: calc(3.9vh * var(--s)); font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56vw; }
+  .pts-p { font-size: calc(3vh * var(--s)); color: #cfcfda; white-space: nowrap; }
+  .pts-p b { color: var(--c); filter: brightness(1.2); font-weight: 800; }
+
+  /* SIN FONDO: solo las filas, con sombra para que se lean sobre el juego */
+  .pts.sin-fondo { background: none; border: none; box-shadow: none !important; padding-left: 0; padding-right: 0; }
+  .pts.sin-fondo .pts-nom, .pts.sin-fondo .pts-pos, .pts.sin-fondo .pts-p, .pts.sin-fondo .pts-titulo {
+    text-shadow: 0 .25vh 0 #000, 0 -.15vh 0 #000, .2vh 0 0 #000, -.2vh 0 0 #000, 0 .4vh 1.2vh rgba(0,0,0,.9); }
+  .pts.sin-fondo .pts-p { color: #fff; }
+  .pts.sin-fondo .pts-fila + .pts-fila { border-top: none; }
+  .pts.sin-fondo .pts-titulo::after { box-shadow: 0 .2vh .5vh rgba(0,0,0,.7); }
+
+  /* entrada según la animación escogida */
+  .pts.pa-tarjeta.entra { animation: tPop .55s cubic-bezier(.2,1.5,.4,1) both; }
+  .pts.pa-rebote.entra { animation: caer .9s cubic-bezier(.3,0,.2,1) both; }
+  .pts.pa-banner.entra { animation: entrarLado .7s cubic-bezier(.2,1.25,.4,1) both; }
+  .pts.pa-moneda.entra { animation: voltear .9s cubic-bezier(.2,.9,.3,1) both; }
+  .pts.pa-neon.entra { animation: tPop .5s ease-out both; }
+  .pts.pa-neon:not(.sin-fondo) { box-shadow: 0 0 1vh var(--c), 0 0 4vh var(--c), inset 0 0 2vh var(--ca); }
+  .pts.pa-neon .pts-nom { text-shadow: 0 0 1vh var(--c), 0 0 2.5vh var(--c); }
+  .pts.out { animation: tFuera .45s ease-in forwards !important; }
+  .pts.pa-banner.out { animation: salirLado .5s cubic-bezier(.6,0,.8,.4) forwards !important; }
+  @keyframes tPop { from { opacity: 0; transform: scale(.4) translateY(6vh); } }
+  @keyframes tFuera { to { opacity: 0; transform: scale(.8) translateY(-4vh); } }
+  @keyframes caer { 0% { transform: translateY(-75vh) scale(.7); } 55% { transform: translateY(0) scale(1.06, .94); } 70% { transform: translateY(-3vh); } 85% { transform: translateY(0) scale(1.02, .98); } 100% { transform: none; } }
+  @keyframes entrarLado { from { transform: translateX(-110vw); } }
+  @keyframes salirLado { to { transform: translateX(110vw); } }
+  @keyframes voltear { from { opacity: 0; transform: perspective(120vh) rotateY(-110deg) scale(.8); } }
+  /* cuando cambian los puntos en el top fijo */
+  .pts-fila.sube .pts-p b { animation: brilla .9s ease-out; }
+  @keyframes brilla { 0% { filter: brightness(2.4); text-shadow: 0 0 2vh var(--c); } }
+
+  /* confeti */
+  .fx { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+  .fx i { position: absolute; left: 0; top: 0; width: calc(1.1vh * var(--s)); height: calc(1.8vh * var(--s)); border-radius: .3vh; background: var(--k);
+    opacity: 0; animation: chispa 1.3s cubic-bezier(.15,.7,.3,1) .6s forwards; }
+  @keyframes chispa { 0% { opacity: 1; transform: translate(-50%, -50%) scale(.4); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(var(--r)); } }
+  @media (prefers-reduced-motion: reduce) { .pts, .pts * { animation-duration: .01s !important; animation-delay: 0s !important; } }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage"></div>
+<script src="pf-config.js"></script>
+<script src="supabase.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  // /puntos?ver=yo  → cuando alguien escribe !puntos
+  // /puntos?ver=top → cuando alguien escribe !top (o siempre visible, si lo activas en ProgramFox)
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const q = new URLSearchParams(location.search);
+  const VER = q.get('ver') === 'top' ? 'top' : 'yo';
+  const EDITOR = q.get('editor') === '1';
+  const ESTILOS = ['tarjeta', 'rebote', 'banner', 'moneda', 'neon'];
+  const TAM = { chico: .78, normal: 1, grande: 1.3 };
+  const MEDALLA = ['#ffc21a', '#cfd6e0', '#e08a4a'];
+  const CONFETI = ['#ffd23a', '#ff4d6d', '#4dd2ff', '#7dff6a', '#ffffff'];
+  const stage = document.getElementById('stage');
+  const fila = [];
+  let actual = null, timer = 0, ocupado = false, fijo = null, fijoClave = '';
+
+  const color = (c) => (/^#[0-9a-f]{6}$/i.test(String(c || '')) ? c : '#ffb020');
+  const fotoOk = (u) => /^https:\/\//i.test(String(u || ''));
+  function tonos(div, hex) {
+    const rgb = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) || 0);
+    const mezcla = (o, t) => 'rgb(' + rgb.map((v, i) => Math.round(v + (o[i] - v) * t)).join(',') + ')';
+    div.style.setProperty('--c', 'rgb(' + rgb.join(',') + ')');
+    div.style.setProperty('--cl', mezcla([255, 255, 255], .3));
+    div.style.setProperty('--cd', mezcla([0, 0, 0], .55));
+    div.style.setProperty('--ca', 'rgba(' + rgb.join(',') + ',.6)');
+  }
+  function filaHtml(f, i) {
+    const nombre = String(f.n || f.u || '').trim();
+    const letra = esc((Array.from(nombre.replace(/^[^\p{L}\p{N}]+/u, ''))[0] || Array.from(nombre)[0] || '?').toUpperCase());
+    const pos = Number(f.pos) || 0;
+    const m = pos >= 1 && pos <= 3 ? `--m:${MEDALLA[pos - 1]}` : '';
+    const corona = pos === 1 ? `<svg class="pts-corona" viewBox="0 0 64 44"><path d="M5 40 L9 10 L22 24 L32 5 L42 24 L55 10 L59 40 Z" fill="${MEDALLA[0]}" stroke="rgba(0,0,0,.45)" stroke-width="2.5" stroke-linejoin="round"/><circle cx="9" cy="9" r="4" fill="${MEDALLA[0]}"/><circle cx="32" cy="5" r="4" fill="${MEDALLA[0]}"/><circle cx="55" cy="9" r="4" fill="${MEDALLA[0]}"/><rect x="7" y="34" width="50" height="6" rx="2" fill="rgba(0,0,0,.18)"/></svg>` : '';
+    return `<div class="pts-fila${pos === 1 ? ' con-corona' : ''}" data-k="${esc(f.u || nombre)}" style="--i:${i};${m}">
+      <div class="pts-pos">${pos ? pos + '.' : '—'}</div>
+      <div class="pts-ava"><div class="foto">${fotoOk(f.f) ? `<img src="${esc(f.f)}" alt="" data-letra="${letra}">` : `<div class="letra">${letra}</div>`}</div>${corona}</div>
+      <div class="pts-txt"><div class="pts-nom">${esc(nombre)}</div><div class="pts-p"><b>${esc(f.pts)}</b> puntos</div></div>
+    </div>`;
+  }
+  function arreglarFotos(div) {
+    div.querySelectorAll('.pts-ava img').forEach(im => im.addEventListener('error', () => { const l = document.createElement('div'); l.className = 'letra'; l.textContent = im.dataset.letra; im.replaceWith(l); }));
+  }
+  function confeti(div) {
+    const fx = document.createElement('div'); fx.className = 'fx';
+    let h = '';
+    for (let k = 0; k < 28; k++) { const a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 24; h += `<i style="--x:${(Math.cos(a) * d).toFixed(1)}vh;--y:${(Math.sin(a) * d).toFixed(1)}vh;--r:${Math.round(Math.random() * 720 - 360)}deg;--k:${CONFETI[k % 5]}"></i>`; }
+    fx.innerHTML = h; div.appendChild(fx);
+  }
+  function tarjeta(m, entra = true) {
+    const div = document.createElement('div');
+    const estilo = ESTILOS.includes(m.anim) ? m.anim : 'banner';
+    div.className = 'pts pa-' + estilo + (m.fondo === false ? ' sin-fondo' : '') + (entra ? ' entra' : '');
+    tonos(div, color(m.color));
+    div.style.setProperty('--s', TAM[m.tam] || 1);
+    const t = m.tabla || {};
+    div.innerHTML = (t.titulo ? `<div class="pts-titulo">${esc(t.titulo)}</div>` : '') + (t.filas || []).slice(0, 10).map(filaHtml).join('');
+    arreglarFotos(div);
+    if (m.confeti && entra) confeti(div);
+    return div;
+  }
+
+  // ---------- Tarjetas que salen y se van (cuando escriben el comando) ----------
+  function siguiente() {
+    if (ocupado || !fila.length) return;
+    ocupado = true;
+    const m = fila.shift();
+    if (fijo) { fijo.remove(); fijo = null; }
+    actual = tarjeta(m, true);
+    stage.appendChild(actual);
+    timer = setTimeout(() => {
+      const d = actual; d.classList.add('out');
+      setTimeout(() => { d.remove(); actual = null; ocupado = false; if (!fila.length) pintarFijo(); siguiente(); }, 520);
+    }, Math.max(2, Number(m.duration) || 6) * 1000);
+  }
+
+  // ---------- Top siempre visible (se actualiza solo) ----------
+  let ultimoTop = null;
+  function pintarFijo() {
+    const m = ultimoTop;
+    if (VER !== 'top' || !m || !m.siempre || !m.tabla || !(m.tabla.filas || []).length) { if (fijo) { fijo.remove(); fijo = null; } fijoClave = ''; return; }
+    if (actual) return;   // primero termina la que está saliendo
+    const clave = JSON.stringify([m.anim, m.color, m.tam, m.fondo, m.tabla.titulo, (m.tabla.filas || []).map(f => f.u + ':' + f.pos)]);
+    if (fijo && clave === fijoClave) {
+      // mismas personas en el mismo orden: solo cambian los números
+      (m.tabla.filas || []).forEach(f => {
+        const el = [...fijo.querySelectorAll('.pts-fila')].find(x => x.dataset.k === String(f.u || f.n || ''));
+        const b = el && el.querySelector('.pts-p b');
+        if (b && b.textContent !== String(f.pts)) { b.textContent = f.pts; el.classList.remove('sube'); void el.offsetWidth; el.classList.add('sube'); }
+      });
+      return;
+    }
+    const nuevo = tarjeta(m, !fijo);
+    if (fijo) fijo.replaceWith(nuevo); else stage.appendChild(nuevo);
+    fijo = nuevo; fijoClave = clave;
+  }
+
+  function recibir(m) {
+    if (!m) return;
+    if (m.type === 'puntos-card' && m.vista === VER) {
+      if (fila.length < 20) fila.push(m);
+      siguiente();
+    } else if (m.type === 'puntos-top') {
+      ultimoTop = m;
+      pintarFijo();
+    }
+  }
+
+  if (EDITOR) {
+    // vista previa dentro de ProgramFox: se muestra enseguida
+    window.addEventListener('message', (e) => {
+      if (e.source !== window.parent || !e.data || e.data.type !== 'pf-puntos-prev') return;
+      clearTimeout(timer);
+      stage.innerHTML = ''; actual = null; fijo = null; ocupado = false; fila.length = 0;
+      stage.appendChild(tarjeta(e.data.msg || {}, true));
+    });
+  } else {
+    pfConnect(recibir, 'puntos:' + VER);
+  }
+</script>
+</body>
+</html>
