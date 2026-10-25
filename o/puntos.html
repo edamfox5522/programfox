@@ -181,8 +181,10 @@
 
   // ---------- Top siempre visible (se actualiza solo) ----------
   let ultimoTop = null;
+  let ocultoHasta = 0;
   function pintarFijo() {
     const m = ultimoTop;
+    if (Date.now() < ocultoHasta) return;   // está saliendo la tarjeta de otro enlace
     if (VER !== 'top' || !m || !m.siempre || !m.tabla || !(m.tabla.filas || []).length) { if (fijo) { fijo.remove(); fijo = null; } fijoClave = ''; return; }
     if (actual) return;   // primero termina la que está saliendo
     const clave = JSON.stringify([m.anim, m.color, m.tam, m.fondo, m.tabla.titulo, (m.tabla.filas || []).map(f => f.u + ':' + f.pos)]);
@@ -208,6 +210,12 @@
     } else if (m.type === 'puntos-top') {
       ultimoTop = m;
       pintarFijo();
+    } else if (m.type === 'puntos-ocupado' && VER === 'top' && m.vista !== 'top') {
+      // otra tarjeta (!puntos o !canjes) está en pantalla: el top fijo se esconde y vuelve después
+      const ms = Math.max(1000, Math.min(60000, Number(m.ms) || 6000));
+      ocultoHasta = Date.now() + ms;
+      if (fijo) { const f = fijo; fijo = null; fijoClave = ''; f.classList.add('out'); setTimeout(() => f.remove(), 520); }
+      setTimeout(pintarFijo, ms + 60);
     }
   }
 
