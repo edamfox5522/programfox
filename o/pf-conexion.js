@@ -18,7 +18,7 @@
   window.pfConnect = function (onMsg, nombre) {
     if (!NUBE) {
       (function conectar() {
-        const ws = new WebSocket(`ws://${location.host}/ws`);
+        const ws = new WebSocket(`ws://${location.host}/ws` + (nombre ? '?o=' + encodeURIComponent(nombre) : ''));
         ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch (_) { return; } onMsg(m); };
         ws.onclose = () => setTimeout(conectar, 2000);
         ws.onerror = () => ws.close();

@@ -241,10 +241,12 @@
   } else {
     pfConnect((m) => {
       if (m.type === 'alert' && (SCREEN === 'all' || String(m.screen || 1) === SCREEN)) {
-        if (queue.length < 50) queue.push({ ...m, image: pfMedia(m.image) });
+        // fila máxima de esta pantalla (la eliges en Acciones y Eventos → Pantallas)
+        const max = Math.max(1, Math.min(50, Number(m.cola) || 50));
+        if (queue.length < max) queue.push({ ...m, image: pfMedia(m.image) });
         next();
       }
-    }, 'alertas');
+    }, q.get('preview') === '1' ? 'alertas-vista' : 'alertas:' + SCREEN);
   }
 </script>
 </body>
