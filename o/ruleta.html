@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>ProgramFox - Ruleta de Wins</title>
+<style>
+  @font-face { font-family: 'Outfit'; font-weight: 800; src: url('fuentes/outfit-latin-800-normal.woff2') format('woff2'); font-display: swap; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  body { font-family: 'Outfit', 'Segoe UI', 'Arial Black', sans-serif; color: #fff; }
+  .escena { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.2vmin;
+    transition: opacity .45s ease, transform .45s cubic-bezier(.2,1.3,.4,1); }
+  .escena.oculta { opacity: 0; transform: scale(.85); pointer-events: none; }
+  .escena.nada { display: none; }
+
+  /* título */
+  .titulo { font-size: 6vmin; font-weight: 800; letter-spacing: .5vmin; padding: 1.1vmin 4vmin; border-radius: 10vmin;
+    background: linear-gradient(135deg, #ffb020, #ff7a18 55%, #ff4d6d); color: #1a0c00; box-shadow: 0 1vmin 3vmin rgba(0,0,0,.45), 0 0 4vmin rgba(255,122,24,.45);
+    text-shadow: 0 .2vmin 0 rgba(255,255,255,.35); white-space: nowrap; }
+  .titulo:empty { display: none; }
+
+  /* ===================== ESTILO RUEDA ===================== */
+  .rueda { position: relative; width: 74vmin; height: 74vmin; filter: drop-shadow(0 2vmin 4vmin rgba(0,0,0,.55)); }
+  .rueda > svg:not(.flecha) { width: 100%; height: 100%; display: block; overflow: visible; }
+  #giro { transform-origin: 0 0; }
+  .seg-txt { font-family: 'Outfit', 'Segoe UI', sans-serif; font-weight: 800; fill: #fff; paint-order: stroke; stroke: rgba(0,0,0,.45); stroke-width: 1.4px; }
+  .ganador { animation: brillo .45s ease-in-out 6 alternate; }
+  @keyframes brillo { to { filter: brightness(1.55) saturate(1.2); } }
+  .foco { animation: foco 1.2s ease-in-out infinite; }
+  .foco.b { animation-delay: .6s; }
+  @keyframes foco { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+  .girando .foco { animation-duration: .35s; }
+  .flecha { position: absolute; left: 50%; top: -3.6vmin; width: 9vmin; height: auto; transform: translateX(-50%); transform-origin: 50% 25%; z-index: 2; filter: drop-shadow(0 .6vmin 1vmin rgba(0,0,0,.6)); }
+  .flecha.tic { animation: tic .12s ease-out; }
+  @keyframes tic { 40% { transform: translateX(-50%) rotate(-18deg); } }
+  .resultado { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(.3); opacity: 0; z-index: 3; text-align: center;
+    font-size: 12vmin; font-weight: 800; padding: 2vmin 6vmin; border-radius: 4vmin; white-space: nowrap; color: #fff;
+    background: var(--rc, #22c55e); border: .8vmin solid #fff; box-shadow: 0 2vmin 6vmin rgba(0,0,0,.6), 0 0 6vmin var(--rc, #22c55e);
+    text-shadow: 0 .5vmin 0 rgba(0,0,0,.35); }
+  .resultado.on { animation: sale .6s cubic-bezier(.2,1.6,.4,1) forwards; }
+  .resultado.off { animation: va .4s ease-in forwards; }
+  @keyframes sale { to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+  @keyframes va { from { transform: translate(-50%, -50%) scale(1); opacity: 1; } to { transform: translate(-50%, -50%) scale(.6); opacity: 0; } }
+
+  /* ===================== ESTILO CAJA SORPRESA + TIRA ===================== */
+  .zona { position: relative; width: 100%; height: 62vmin; display: grid; place-items: center; }
+  /* la caja */
+  .caja { position: absolute; width: 46vmin; height: 46vmin; perspective: 80vmin; transition: opacity .3s, transform .3s; }
+  .cara { position: absolute; inset: 0; border-radius: 7vmin; display: grid; place-items: center;
+    background: conic-gradient(from 210deg, #ff3d6e, #ff9a1a, #ffe14d, #3ddc84, #2ec5ff, #7c5cff, #ff3dcf, #ff3d6e);
+    border: 1.6vmin solid #fff; box-shadow: 0 0 0 1vmin rgba(0,0,0,.55), 0 2.5vmin 5vmin rgba(0,0,0,.55), inset 0 -3vmin 5vmin rgba(0,0,0,.25), inset 0 3vmin 4vmin rgba(255,255,255,.35);
+    animation: arcoiris 4s linear infinite; }
+  .cara::after { content: ''; position: absolute; left: 10%; top: 7%; width: 45%; height: 22%; border-radius: 50%; background: rgba(255,255,255,.35); filter: blur(1vmin); }
+  .signo { font-size: 33vmin; line-height: 1; font-weight: 800; color: #fff; -webkit-text-stroke: 1.6vmin #1b1430; paint-order: stroke fill; text-shadow: 0 1.2vmin 0 rgba(0,0,0,.35); transform: translateY(-.6vmin); }
+  @keyframes arcoiris { to { filter: hue-rotate(360deg); } }
+  .caja.quieta .cara { animation: arcoiris 4s linear infinite, flota 2.6s ease-in-out infinite; }
+  @keyframes flota { 0%, 100% { transform: translateY(0) rotateY(-14deg) rotateZ(-3deg); } 50% { transform: translateY(-2.2vmin) rotateY(14deg) rotateZ(3deg); } }
+  .caja.abre .cara { animation: arcoiris .5s linear infinite, abre 1.5s cubic-bezier(.4,0,.6,1) forwards; }
+  @keyframes abre {
+    0% { transform: scale(1) rotateY(0); }
+    20% { transform: scale(1.05) rotateY(180deg) rotateZ(-6deg); }
+    40% { transform: scale(1.1) rotateY(540deg) rotateZ(6deg); }
+    60% { transform: scale(1.18) rotateY(900deg) rotateZ(-8deg); }
+    75% { transform: scale(1.25) rotateY(1080deg) rotateZ(8deg) translateX(-1vmin); }
+    82% { transform: scale(1.25) rotateY(1080deg) rotateZ(-8deg) translateX(1vmin); }
+    90% { transform: scale(1.3) rotateY(1080deg) rotateZ(0); }
+    100% { transform: scale(.05) rotateY(1080deg); opacity: 0; }
+  }
+  .caja.fuera { opacity: 0; transform: scale(.4); }
+  /* explosión */
+  .boom { position: absolute; width: 90vmin; height: 90vmin; border-radius: 50%; pointer-events: none; opacity: 0;
+    background: repeating-conic-gradient(rgba(255,255,255,.95) 0 6deg, rgba(255,255,255,0) 6deg 22deg);
+    -webkit-mask: radial-gradient(circle, #000 10%, transparent 68%); mask: radial-gradient(circle, #000 10%, transparent 68%); }
+  .boom.on { animation: boom .8s ease-out forwards; }
+  @keyframes boom { 0% { opacity: 1; transform: scale(.2) rotate(0); } 100% { opacity: 0; transform: scale(1.3) rotate(40deg); } }
+  .destello { position: absolute; width: 20vmin; height: 20vmin; border-radius: 50%; background: #fff; opacity: 0; pointer-events: none; filter: blur(2vmin); }
+  .destello.on { animation: destello .5s ease-out forwards; }
+  @keyframes destello { 0% { opacity: 1; transform: scale(.5); } 100% { opacity: 0; transform: scale(5); } }
+
+  /* la tira de premios */
+  .tira-zona { position: absolute; width: 96vw; display: flex; flex-direction: column; align-items: center; gap: 2vmin; opacity: 0; transform: scale(.3); transition: opacity .35s, transform .5s cubic-bezier(.2,1.4,.4,1); }
+  .tira-zona.on { opacity: 1; transform: none; }
+  .ventana { position: relative; width: 100%; overflow: hidden; padding: 3.2vmin 0 2.4vmin; border-radius: 3.4vmin; background: rgba(12,9,20,.86);
+    border: .5vmin solid #ffb020; box-shadow: 0 2vmin 5vmin rgba(0,0,0,.55), 0 0 4vmin rgba(255,176,32,.35), inset 0 0 3vmin rgba(0,0,0,.6); }
+  .ventana::before, .ventana::after { content: ''; position: absolute; top: 0; bottom: 0; width: 14%; z-index: 2; pointer-events: none; }
+  .ventana::before { left: 0; background: linear-gradient(90deg, rgba(12,9,20,.95), rgba(12,9,20,0)); }
+  .ventana::after { right: 0; background: linear-gradient(-90deg, rgba(12,9,20,.95), rgba(12,9,20,0)); }
+  .tira { display: flex; gap: var(--gap); padding: 0 calc(50% - var(--cw) / 2); will-change: transform; }
+  .carta { flex: none; width: var(--cw); height: calc(var(--cw) * 1.18); border-radius: 2.4vmin; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: linear-gradient(170deg, var(--cl) 0%, var(--c) 45%, var(--cd) 100%); border: .55vmin solid rgba(255,255,255,.92);
+    box-shadow: 0 .8vmin 1.6vmin rgba(0,0,0,.45), inset 0 -1.2vmin 2vmin rgba(0,0,0,.22), inset 0 1.2vmin 1.6vmin rgba(255,255,255,.28); transition: transform .3s, box-shadow .3s; }
+  .carta b { font-size: calc(var(--cw) * .38); line-height: .95; font-weight: 800; -webkit-text-stroke: .5vmin rgba(0,0,0,.35); paint-order: stroke fill; text-shadow: 0 .6vmin 0 rgba(0,0,0,.28); }
+  .carta small { font-size: calc(var(--cw) * .2); font-weight: 800; letter-spacing: .2vmin; text-shadow: 0 .4vmin 0 rgba(0,0,0,.3); margin-top: .4vmin; }
+  .carta.chica b { font-size: calc(var(--cw) * .25); }
+  .carta.gana { transform: scale(1.14); box-shadow: 0 0 0 .6vmin #fff, 0 0 5vmin var(--c), 0 1vmin 2vmin rgba(0,0,0,.5); animation: gana .4s ease-in-out 6 alternate; z-index: 1; }
+  @keyframes gana { to { filter: brightness(1.35); } }
+  .puntero { position: absolute; left: 50%; top: -.4vmin; z-index: 3; width: 7vmin; transform: translateX(-50%); filter: drop-shadow(0 .5vmin .8vmin rgba(0,0,0,.6)); }
+  .linea { position: absolute; left: 50%; top: 0; bottom: 0; width: .6vmin; transform: translateX(-50%); z-index: 3; background: linear-gradient(#ffb020, rgba(255,176,32,.15)); box-shadow: 0 0 1.4vmin #ffb020; border-radius: 1vmin; }
+  .puntero.tic { animation: tic2 .1s ease-out; }
+  @keyframes tic2 { 50% { transform: translateX(-50%) translateY(-.8vmin); } }
+  .tira-res { font-size: 10vmin; font-weight: 800; padding: 1vmin 5vmin; border-radius: 3vmin; background: var(--rc, #22c55e); border: .6vmin solid #fff; color: #fff;
+    box-shadow: 0 1.6vmin 4vmin rgba(0,0,0,.55), 0 0 5vmin var(--rc, #22c55e); text-shadow: 0 .5vmin 0 rgba(0,0,0,.35); white-space: nowrap; opacity: 0; transform: scale(.3); }
+  .tira-res.on { animation: sale2 .55s cubic-bezier(.2,1.6,.4,1) forwards; }
+  @keyframes sale2 { to { opacity: 1; transform: scale(1); } }
+
+  /* ===================== COMUNES ===================== */
+  /* contador de wins (esquina) */
+  .contador { position: absolute; right: 3vmin; top: 3vmin; z-index: 6; display: flex; align-items: center; gap: 1.4vmin; font-size: 6.4vmin; font-weight: 800; color: #fff;
+    -webkit-text-stroke: .5vmin #1b1430; paint-order: stroke fill; text-shadow: 0 .7vmin 0 rgba(0,0,0,.4); transition: transform .3s; }
+  .contador.oculto { display: none; }
+  .contador .copa { font-size: 5.4vmin; -webkit-text-stroke: 0; }
+  .contador.sube { animation: bump .7s cubic-bezier(.2,1.6,.4,1); color: #7dff9b; }
+  .contador.baja { animation: bump .7s cubic-bezier(.2,1.6,.4,1); color: #ff7b7b; }
+  @keyframes bump { 30% { transform: scale(1.35); } }
+  /* quién gira */
+  .quien { position: absolute; left: 50%; bottom: 3vmin; z-index: 5; display: flex; align-items: center; gap: 2vmin; padding: 1.2vmin 3.4vmin 1.2vmin 1.2vmin; border-radius: 10vmin; background: rgba(14,11,20,.88);
+    border: .4vmin solid #ffb020; box-shadow: 0 1vmin 3vmin rgba(0,0,0,.45); max-width: 92vw; opacity: 0; transform: translate(-50%, 2vmin); transition: .35s; }
+  .quien.on { opacity: 1; transform: translate(-50%, 0); }
+  .quien .av { width: 8vmin; height: 8vmin; border-radius: 50%; object-fit: cover; flex: none; border: .4vmin solid #ffb020; background: #2a2436; display: grid; place-items: center; font-weight: 800; font-size: 4vmin; }
+  .quien b { font-size: 4.4vmin; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .quien span { font-size: 3.4vmin; color: #d8d2e4; white-space: nowrap; }
+  /* confeti */
+  .fx { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: 4; pointer-events: none; }
+  .fx i { position: absolute; width: 1.6vmin; height: 2.6vmin; border-radius: .4vmin; background: var(--k); opacity: 0; animation: chispa 1.5s cubic-bezier(.15,.7,.3,1) forwards; }
+  @keyframes chispa { 0% { opacity: 1; transform: translate(-50%, -50%) scale(.4); } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(var(--r)); } }
+  @media (prefers-reduced-motion: reduce) { .foco { animation: none; } }
+</style>
+</head>
+<body>
+<div class="contador oculto" id="contador"><span class="copa">🏆</span><span id="contTxt">0/5 WINS</span></div>
+
+<!-- ============ RUEDA ============ -->
+<div class="escena nada" id="escena">
+  <div class="titulo" id="titulo"></div>
+  <div class="rueda" id="rueda">
+    <svg class="flecha" id="flecha" viewBox="0 0 40 52"><defs><linearGradient id="fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4c2"/><stop offset=".5" stop-color="#ffc21a"/><stop offset="1" stop-color="#d97706"/></linearGradient></defs>
+      <path d="M20 50 L4 14 A17 17 0 1 1 36 14 Z" fill="url(#fl)" stroke="#5a2e00" stroke-width="2.5" stroke-linejoin="round"/><circle cx="20" cy="15" r="6" fill="#fff" opacity=".85"/></svg>
+    <svg viewBox="-100 -100 200 200">
+      <defs>
+        <radialGradient id="aro" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="scale(100)"><stop offset=".86" stop-color="#3a2a55"/><stop offset=".93" stop-color="#1b1328"/><stop offset="1" stop-color="#0d0914"/></radialGradient>
+        <radialGradient id="centro" cx="-.3" cy="-.3" r="1.2"><stop offset="0" stop-color="#fff3b0"/><stop offset=".45" stop-color="#ffc21a"/><stop offset="1" stop-color="#b45309"/></radialGradient>
+        <radialGradient id="sombra" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="scale(86)"><stop offset=".55" stop-color="rgba(0,0,0,0)"/><stop offset="1" stop-color="rgba(0,0,0,.35)"/></radialGradient>
+      </defs>
+      <circle r="99" fill="url(#aro)" stroke="#ffb020" stroke-width="2.2"/>
+      <g id="focos"></g>
+      <g id="giro"><g id="segs"></g><circle r="86" fill="url(#sombra)" pointer-events="none"/></g>
+      <circle r="86" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/>
+      <circle r="19" fill="url(#centro)" stroke="#5a2e00" stroke-width="2"/>
+      <path d="M-8 -9h16v3c0 6-3.5 10-8 11c-4.5-1-8-5-8-11z M-2 5h4v4h-4z M-6 9h12v3h-12z" fill="#7c3a00" opacity=".85"/>
+    </svg>
+    <div class="resultado" id="resultado"></div>
+  </div>
+</div>
+
+<!-- ============ CAJA SORPRESA + TIRA ============ -->
+<div class="escena nada" id="escCaja">
+  <div class="zona" id="zona">
+    <div class="caja quieta" id="caja"><div class="cara"><span class="signo">?</span></div></div>
+    <div class="destello" id="destello"></div>
+    <div class="boom" id="boom"></div>
+    <div class="tira-zona" id="tiraZona">
+      <div class="titulo" id="tituloCaja"></div>
+      <div class="ventana" id="ventana">
+        <svg class="puntero" id="puntero" viewBox="0 0 40 30"><path d="M4 2 H36 L20 28 Z" fill="#ffb020" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>
+        <div class="linea"></div>
+        <div class="tira" id="tira"></div>
+      </div>
+      <div class="tira-res" id="tiraRes"></div>
+    </div>
+  </div>
+</div>
+
+<div class="quien" id="quien"></div>
+
+<script src="pf-config.js"></script>
+<script src="supabase.js"></script>
+<script src="pf-conexion.js"></script>
+<script>
+  // /ruleta  →  la Ruleta de Wins (el premio lo decide ProgramFox; aquí solo se anima)
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const q = new URLSearchParams(location.search);
+  const PREVIEW = q.get('preview') === '1';     // dentro de ProgramFox: sin sonido (para que no suene doble)
+  const color = (c) => (/^#[0-9a-f]{6}$/i.test(String(c || '')) ? c : '#64748b');
+  const $ = (id) => document.getElementById(id);
+  let R = { titulo: 'RULETA DE WINS', estilo: 'caja', contador: true, mostrar: 'siempre', sonido: true, quien: true, confeti: true, premios: [], ang: 0 };
+  let ang = 0, anim = null, ocupado = false, tQuitar = 0, clavePremios = '', timers = [];
+  const despues = (ms, f) => { const t = setTimeout(f, ms); timers.push(t); return t; };
+  const limpiarTimers = () => { timers.forEach(clearTimeout); timers = []; };
+  const caja = () => R.estilo !== 'rueda';
+  function tonos(hex) {
+    const rgb = [1, 3, 5].map(i => parseInt(color(hex).slice(i, i + 2), 16) || 0);
+    const m = (o, t) => 'rgb(' + rgb.map((v, i) => Math.round(v + (o[i] - v) * t)).join(',') + ')';
+    return { c: color(hex), l: m([255, 255, 255], .35), d: m([0, 0, 0], .45) };
+  }
+
+  // ---------- sonido (WebAudio, sin archivos) ----------
+  let ac = null;
+  function audio() { if (PREVIEW || !R.sonido) return null; try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); } catch (_) { ac = null; } return ac; }
+  function tono(f, t0, dur, tipo = 'sine', vol = .18) {
+    const a = audio(); if (!a) return;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = tipo; o.frequency.setValueAtTime(f, a.currentTime + t0);
+    g.gain.setValueAtTime(vol, a.currentTime + t0); g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + t0 + dur);
+    o.connect(g).connect(a.destination); o.start(a.currentTime + t0); o.stop(a.currentTime + t0 + dur + .02);
+  }
+  const sonTic = () => tono(1900, 0, .035, 'square', .06);
+  function sonBoom() { tono(90, 0, .5, 'sawtooth', .22); tono(60, .02, .6, 'square', .12); [880, 1320, 1760].forEach((f, i) => tono(f, .05 + i * .04, .25, 'triangle', .1)); }
+  function sonGiraCaja() { for (let i = 0; i < 10; i++) tono(300 + i * 60, i * .12, .08, 'square', .05); }
+  function sonResultado(tipo) {
+    if (tipo === 'sumar' || tipo === 'doble') [523, 659, 784, 1046].forEach((f, i) => tono(f, i * .09, .28, 'triangle', .2));
+    else if (tipo === 'otra') [659, 880, 659, 880].forEach((f, i) => tono(f, i * .1, .18, 'triangle', .18));
+    else if (tipo === 'nada') tono(180, 0, .4, 'sawtooth', .09);
+    else [440, 349, 262].forEach((f, i) => tono(f, i * .13, .3, 'sawtooth', .1));
+  }
+
+  // ---------- contador de wins (esquina) ----------
+  let W = null;
+  function pintarContador(anima) {
+    const el = $('contador');
+    el.classList.toggle('oculto', !R.contador || !W);
+    if (!W) return;
+    $('contTxt').textContent = `${W.conteo}/${W.meta} ${Math.abs(W.conteo) === 1 ? 'WIN' : 'WINS'}`;
+    if (anima) { el.classList.remove('sube', 'baja'); void el.offsetWidth; el.classList.add(anima > 0 ? 'sube' : 'baja'); despues(900, () => el.classList.remove('sube', 'baja')); }
+  }
+
+  // ---------- RUEDA: dibujar ----------
+  function pintarRueda() {
+    const l = R.premios || [];
+    const n = Math.max(1, l.length), seg = 360 / n, r = 86;
+    const pt = (a, rr) => { const t = (a - 90) * Math.PI / 180; return [Math.cos(t) * rr, Math.sin(t) * rr]; };
+    let h = '';
+    l.forEach((p, i) => {
+      const a0 = i * seg, a1 = a0 + seg, [x0, y0] = pt(a0, r), [x1, y1] = pt(a1, r), mid = a0 + seg / 2;
+      h += `<g class="seg" data-i="${i}"><path d="M0 0 L${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${seg > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z" fill="${color(p.color)}" stroke="rgba(255,255,255,.75)" stroke-width="1.1"/>`;
+      const t = String(p.t || '');
+      const fs = t.length <= 3 ? 17 : t.length <= 5 ? 13 : t.length <= 8 ? 10 : 8;
+      h += `<text class="seg-txt" transform="rotate(${mid}) translate(0 -${r * 0.6}) rotate(90)" text-anchor="middle" dominant-baseline="central" font-size="${fs}">${esc(t)}</text></g>`;
+    });
+    $('segs').innerHTML = h;
+    let f = '';
+    for (let i = 0; i < 24; i++) { const [x, y] = pt(i * 15, 93); f += `<circle class="foco ${i % 2 ? 'b' : ''}" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="2.6" fill="${i % 2 ? '#fff4c2' : '#ffb020'}"/>`; }
+    $('focos').innerHTML = f;
+  }
+  function rotar(a) { ang = a; $('giro').setAttribute('transform', `rotate(${a})`); }
+
+  function pintar() {
+    $('titulo').textContent = R.titulo || '';
+    $('tituloCaja').textContent = R.titulo || '';
+    $('escena').classList.toggle('nada', caja());
+    $('escCaja').classList.toggle('nada', !caja());
+    pintarContador();
+    const clave = JSON.stringify(R.premios || []);
+    if (clave !== clavePremios) { clavePremios = clave; pintarRueda(); }
+  }
+  function visible(si) { $(caja() ? 'escCaja' : 'escena').classList.toggle('oculta', !si); }
+  function quien(qn) {
+    const el = $('quien');
+    if (!R.quien || !qn) { el.classList.remove('on'); return; }
+    const letra = esc((Array.from(String(qn.nombre || '?'))[0] || '?').toUpperCase());
+    const foto = /^https:\/\//i.test(String(qn.foto || '')) ? `<img class="av" src="${esc(qn.foto)}" alt="">` : `<div class="av">${letra}</div>`;
+    el.innerHTML = `${foto}<div><b>${esc(qn.nombre)}</b> <span>gira la ruleta</span></div>`;
+    const im = el.querySelector('img'); if (im) im.onerror = () => { im.outerHTML = `<div class="av">${letra}</div>`; };
+    el.classList.add('on');
+  }
+  function confeti(c, dentro) {
+    if (!R.confeti) return;
+    const fx = document.createElement('div'); fx.className = 'fx';
+    const cols = ['#ffd23a', '#ff4d6d', '#4dd2ff', '#7dff6a', '#ffffff', c];
+    let h = '';
+    for (let k = 0; k < 44; k++) { const a = Math.random() * Math.PI * 2, d = 18 + Math.random() * 34; h += `<i style="--x:${(Math.cos(a) * d).toFixed(1)}vmin;--y:${(Math.sin(a) * d).toFixed(1)}vmin;--r:${Math.round(Math.random() * 720 - 360)}deg;--k:${cols[k % cols.length]}"></i>`; }
+    fx.innerHTML = h; (dentro || document.body).appendChild(fx); setTimeout(() => fx.remove(), 1800);
+  }
+
+  // ---------- CAJA: las cartas de la tira ----------
+  function cartaHtml(p, gana) {
+    const t = String(p.t || ''), k = tonos(p.color);
+    let big = t, small = '', chica = false;
+    if (p.tipo === 'sumar' || p.tipo === 'quitar') { big = t; small = Math.abs(parseInt(t, 10)) === 1 ? 'WIN' : 'WINS'; }
+    else if (p.tipo === 'doble') { big = 'x2'; small = 'WINS'; }
+    else if (p.tipo === 'cero') { big = '0'; small = 'WINS'; }
+    else if (p.tipo === 'otra') { big = 'OTRA'; small = 'VEZ'; chica = true; }
+    else { big = 'NADA'; chica = true; }
+    return `<div class="carta${chica ? ' chica' : ''}${gana ? ' es-ganadora' : ''}" style="--c:${k.c};--cl:${k.l};--cd:${k.d}"><b>${esc(big)}</b>${small ? `<small>${esc(small)}</small>` : ''}</div>`;
+  }
+  function armarTira(idx) {
+    const l = R.premios || []; if (!l.length) return 0;
+    const N = 64, gan = 52;               // la ganadora va casi al final (así corre un buen rato)
+    let h = '';
+    for (let i = 0; i < N; i++) h += cartaHtml(i === gan ? l[idx] || l[0] : l[Math.floor(Math.random() * l.length)], i === gan);
+    const t = $('tira');
+    t.innerHTML = h;
+    // tamaño de la carta según el ancho (se ven ~5)
+    const vw = $('ventana').clientWidth || window.innerWidth;
+    const cw = Math.max(60, Math.round(vw / 5.4)), gap = Math.round(cw * .08);
+    t.style.setProperty('--cw', cw + 'px'); t.style.setProperty('--gap', gap + 'px');
+    t.style.transform = 'translateX(0px)';
+    return { gan, paso: cw + gap, cw };
+  }
+  function animarTira(info, dur, azar) {
+    const t = $('tira');
+    // la ganadora queda debajo de la flecha, con un poquito de azar dentro de la carta
+    const destino = info.gan * info.paso + ((azar || Math.random()) - .5) * info.cw * .6;
+    const t0 = performance.now();
+    const ease = (x) => 1 - Math.pow(1 - x, 4);
+    let ult = -1;
+    const paso = (ahora) => {
+      const x = Math.min(1, (ahora - t0) / dur);
+      const off = destino * ease(x);
+      t.style.transform = `translateX(${-off}px)`;
+      const c = Math.floor((off + info.paso / 2) / info.paso);
+      if (c !== ult) { ult = c; sonTic(); const p = $('puntero'); p.classList.remove('tic'); void p.getBoundingClientRect(); p.classList.add('tic'); }
+      if (x < 1) anim = requestAnimationFrame(paso);
+    };
+    anim = requestAnimationFrame(paso);
+  }
+  function cajaQuieta() {
+    const c = $('caja');
+    c.className = 'caja quieta';
+    $('tiraZona').classList.remove('on');
+    $('tiraRes').className = 'tira-res';
+  }
+  function girarCaja(g) {
+    const intro = Math.max(0, Number(g.intro) || 0), dur = Math.max(1500, Number(g.dur) || 7000);
+    $('tiraZona').classList.remove('on'); $('tiraRes').className = 'tira-res';
+    const c = $('caja'); c.className = 'caja'; void c.offsetWidth; c.className = 'caja abre';
+    sonGiraCaja();
+    // la caja gira, tiembla y explota → sale la tira
+    despues(Math.max(0, intro - 600), () => {
+      sonBoom();
+      ['destello', 'boom'].forEach(id => { const e = $(id); e.classList.remove('on'); void e.offsetWidth; e.classList.add('on'); });
+      c.className = 'caja fuera';
+      const info = armarTira(g.idx);
+      $('tiraZona').classList.add('on');
+      despues(600, () => { if (info) animarTira(info, dur, g.azar); });
+    });
+  }
+  function resultadoCaja(r, p, col) {
+    const gan = document.querySelector('.carta.es-ganadora'); if (gan) gan.classList.add('gana');
+    const el = $('tiraRes');
+    el.style.setProperty('--rc', col);
+    el.textContent = r.texto || r.premio || '';
+    el.className = 'tira-res on';
+    if (['sumar', 'doble', 'otra'].includes(r.tipo)) confeti(col, $('zona'));
+  }
+
+  // ---------- RUEDA: girar ----------
+  function girarRueda(g) {
+    $('resultado').className = 'resultado';
+    document.querySelectorAll('.seg.ganador').forEach(x => x.classList.remove('ganador'));
+    $('rueda').classList.add('girando');
+    const n = Math.max(1, (R.premios || []).length), seg = 360 / n;
+    const desde = Number(g.desde) || 0, hasta = Number(g.hasta) || desde + 1800, dur = Math.max(1500, Number(g.dur) || 7000);
+    const t0 = performance.now();
+    let ultSeg = Math.floor((((360 - desde) % 360) + 360) % 360 / seg);
+    const ease = (t) => 1 - Math.pow(1 - t, 4);
+    const paso = (ahora) => {
+      const t = Math.min(1, (ahora - t0) / dur);
+      const a = desde + (hasta - desde) * ease(t);
+      rotar(a);
+      const s = Math.floor((((360 - a) % 360) + 360) % 360 / seg);
+      if (s !== ultSeg) { ultSeg = s; sonTic(); const fl = $('flecha'); fl.classList.remove('tic'); void fl.getBoundingClientRect(); fl.classList.add('tic'); }
+      if (t < 1) anim = requestAnimationFrame(paso);
+      else { rotar(hasta % 360); $('rueda').classList.remove('girando'); }
+    };
+    rotar(desde % 360);
+    anim = requestAnimationFrame(paso);
+  }
+  function resultadoRueda(r, p, col) {
+    const seg = document.querySelector(`.seg[data-i="${Number(r.idx)}"]`); if (seg) seg.classList.add('ganador');
+    const el = $('resultado');
+    el.style.setProperty('--rc', col);
+    el.textContent = r.texto || r.premio || '';
+    el.className = 'resultado on';
+    if (['sumar', 'doble', 'otra'].includes(r.tipo)) confeti(col, $('rueda'));
+  }
+
+  // ---------- comunes ----------
+  function girar(g) {
+    cancelAnimationFrame(anim); clearTimeout(tQuitar); limpiarTimers();
+    if (g.premios) R.premios = g.premios;
+    if (g.estilo) R.estilo = g.estilo;
+    pintar();
+    visible(true); ocupado = true;
+    quien(g.quien);
+    if (caja()) girarCaja(g); else girarRueda(g);
+  }
+  function resultado(r) {
+    const p = (R.premios || [])[r.idx] || {};
+    const col = color(p.color);
+    sonResultado(r.tipo);
+    if (caja()) resultadoCaja(r, p, col); else resultadoRueda(r, p, col);
+    tQuitar = setTimeout(() => {
+      ocupado = false;
+      $('quien').classList.remove('on');
+      if (caja()) cajaQuieta(); else $('resultado').className = 'resultado off';
+      if (R.mostrar === 'girando' && !PREVIEW) setTimeout(() => { if (!ocupado) visible(false); }, 500);
+    }, 3300);
+  }
+
+  function recibir(m) {
+    if (!m) return;
+    if (m.type === 'ruleta' && m.ruleta) {
+      R = { ...R, ...m.ruleta };
+      pintar();
+      if (!ocupado) { if (!caja()) rotar(Number(R.ang) || 0); visible(PREVIEW || R.mostrar !== 'girando'); }
+    } else if (m.type === 'ruleta-girar') girar(m);
+    else if (m.type === 'ruleta-resultado') resultado(m);
+    else if (m.type === 'wins' && m.wins) { const antes = W ? W.conteo : null; W = { conteo: Number(m.wins.conteo) || 0, meta: Number(m.wins.meta) || 1 }; pintarContador(antes != null && antes !== W.conteo ? W.conteo - antes : 0); }
+  }
+
+  pintar();
+  visible(true);
+  pfConnect(recibir, PREVIEW ? 'ruleta-vista' : 'ruleta');
+</script>
+</body>
+</html>
