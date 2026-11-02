@@ -2,481 +2,486 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ProgramFox · Tu chat controla tu LIVE</title>
-<meta name="description" content="ProgramFox: programa interactivo para TikTok LIVE. Juegos, GTA V Modo Caos, Minecraft, voz del chat y overlays para OBS.">
-<link rel="icon" href="img/icon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0b0b0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PF Clientes">
+<title>PF Clientes</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icono.png">
+<link rel="icon" href="icono.png">
 <style>
   /* ============================================================
-     CONFIGURACIÓN DE TU PÁGINA (cámbialo aquí)
-     Los links están abajo en el <script>, en "CONFIG".
+     ProgramFox · Panel de clientes para el celular (solo el dueño)
+     Usa el mismo servidor que la pestaña "Clientes" del programa:
+     la función admin-clientes de Supabase, que revisa que seas tú.
      ============================================================ */
   :root {
-    --bg: #0a0a0e; --bg2: #111118; --panel: #15151c; --line: #24242f; --line2: #30303d;
-    --text: #f2f2f7; --muted: #9a9aab; --accent: #ff7a1a; --accent2: #ffb347; --ok: #22c55e;
+    --bg: #0b0b0f; --panel: #15151c; --panel2: #1c1c25; --line: #2a2a36;
+    --tx: #f2f2f7; --mut: #9a9aab; --or: #ff7a1a; --or2: #ffb347;
+    --ok: #22c55e; --warn: #f5b041; --bad: #f43f5e;
+    --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px);
   }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; line-height: 1.5; }
-  a { color: inherit; text-decoration: none; }
-  img { max-width: 100%; display: block; }
-  .wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; background: var(--bg); color: var(--tx); font: 16px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+  body { min-height: 100dvh; padding: calc(var(--safe-t) + 14px) 16px calc(var(--safe-b) + 90px); max-width: 560px; margin: 0 auto; }
+  button, input, select { font: inherit; color: inherit; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 14px; padding: 14px 18px; font-weight: 700; cursor: pointer; background: var(--panel2); color: var(--tx); border: 1px solid var(--line); }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .55; }
+  .btn.pri { background: var(--or); border-color: var(--or); color: #1a0c00; }
+  .btn.ok { background: rgba(34,197,94,.15); border-color: rgba(34,197,94,.5); color: #6ee7a0; }
+  .btn.bad { background: rgba(244,63,94,.12); border-color: rgba(244,63,94,.45); color: #fda4af; }
+  .btn.full { width: 100%; }
+  .btn:focus-visible, input:focus-visible { outline: 2px solid var(--or); outline-offset: 2px; }
+  input, select { width: 100%; background: #101016; border: 1px solid var(--line); border-radius: 14px; padding: 14px 15px; outline: 0; }
+  input:focus { border-color: var(--or); }
+  label { display: block; font-size: 14px; color: var(--mut); margin: 14px 0 6px; }
+  .muted { color: var(--mut); }
+  .err { color: #fda4af; font-size: 14px; min-height: 20px; margin-top: 10px; }
 
-  /* ---- Barra de arriba ---- */
-  header { position: sticky; top: 0; z-index: 20; background: rgba(10,10,14,.82); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
-  .nav { display: flex; align-items: center; gap: 24px; height: 66px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; }
-  .brand img { width: 34px; height: 34px; border-radius: 9px; }
-  .brand span { color: var(--accent); }
-  .links { display: flex; gap: 22px; margin-left: auto; color: var(--muted); font-size: 15px; }
-  .links a:hover { color: var(--text); }
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 11px 20px; border-radius: 11px; font-weight: 700; font-size: 15px; border: 1px solid transparent; cursor: pointer; transition: transform .12s, background .15s; white-space: nowrap; }
-  .btn:hover { transform: translateY(-1px); }
-  .btn-main { background: linear-gradient(135deg, var(--accent), #ff5a36); color: #150a02; box-shadow: 0 10px 30px rgba(255,122,26,.3); }
-  .btn-ghost { background: var(--panel); border-color: var(--line2); color: var(--text); }
-  .btn-discord { background: #5865f2; color: #fff; }
-  .btn-paypal { background: #ffc439; color: #111; }
-  .btn-whatsapp { background: #22c55e; color: #052e12; }
-  .btn svg { width: 19px; height: 19px; }
-  .btn-big { padding: 15px 28px; font-size: 17px; border-radius: 13px; }
-  .menu-btn { display: none; }
+  /* ---- entrar ---- */
+  .entrar { min-height: 80dvh; display: flex; flex-direction: column; justify-content: center; }
+  .marca { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+  .marca img { width: 56px; height: 56px; border-radius: 16px; }
+  .marca b { display: block; font-size: 22px; }
+  .marca small { color: var(--mut); }
+  .caja { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 22px 18px; }
+  .caja h2 { margin: 0 0 4px; font-size: 20px; }
+  .codigo { letter-spacing: 10px; font-size: 26px; text-align: center; font-weight: 800; }
+  .qr { background: #fff; border-radius: 16px; padding: 12px; width: 220px; height: 220px; margin: 14px auto; display: grid; place-items: center; }
+  .qr img { width: 100%; height: 100%; }
+  .secreto { font-family: ui-monospace, monospace; font-size: 13px; word-break: break-all; background: #101016; border: 1px dashed var(--line); padding: 10px; border-radius: 12px; text-align: center; }
+  ol.pasos { padding-left: 20px; margin: 10px 0 0; color: #d8d8e2; }
+  ol.pasos li { margin-bottom: 6px; }
 
-  /* ---- Portada ---- */
-  .hero { position: relative; padding: 80px 0 60px; overflow: hidden; }
-  .hero::before { content: ""; position: absolute; inset: -30% -10% auto; height: 700px; background: radial-gradient(closest-side, rgba(255,122,26,.18), transparent); pointer-events: none; }
-  .hero-grid { position: relative; display: grid; grid-template-columns: 1.05fr 1fr; gap: 50px; align-items: center; }
-  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 13px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line2); color: #d8d8e2; font-size: 13.5px; font-weight: 600; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ff3b5c; box-shadow: 0 0 10px #ff3b5c; }
-  h1 { font-size: clamp(38px, 5.6vw, 66px); line-height: 1.04; margin: 20px 0 18px; letter-spacing: -1.5px; font-weight: 900; }
-  h1 .hl { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .lead { color: #c6c6d2; font-size: 19px; max-width: 540px; margin: 0 0 30px; }
-  .cta { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
-  .checks { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 22px; color: var(--muted); font-size: 14px; }
-  .checks b { color: var(--ok); margin-right: 4px; }
-  .shot { position: relative; border-radius: 18px; overflow: hidden; border: 1px solid var(--line2); box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,122,26,.12); transform: perspective(1400px) rotateY(-7deg) rotateX(2deg); }
-  .float { position: absolute; padding: 9px 14px; border-radius: 12px; background: rgba(21,21,28,.92); border: 1px solid var(--line2); font-weight: 700; font-size: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.5); animation: flot 4s ease-in-out infinite; }
-  .f1 { left: -22px; top: 18%; } .f2 { right: -14px; top: 52%; animation-delay: -1.5s; } .f3 { left: 12%; bottom: -16px; animation-delay: -3s; color: #111; background: linear-gradient(90deg, var(--accent), var(--accent2)); border: none; }
-  @keyframes flot { 50% { transform: translateY(-9px); } }
+  /* ---- panel ---- */
+  .barra { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .barra img { width: 40px; height: 40px; border-radius: 12px; }
+  .barra b { font-size: 19px; flex: 1; }
+  .barra button { padding: 10px 14px; font-size: 14px; }
+  .resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .resumen div { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; text-align: center; }
+  .resumen b { display: block; font-size: 24px; }
+  .resumen span { font-size: 13px; color: var(--mut); }
+  .resumen .r b { color: #fda4af; } .resumen .a b { color: var(--warn); } .resumen .v b { color: #6ee7a0; }
+  .buscar { margin-bottom: 12px; }
+  .lista { display: flex; flex-direction: column; gap: 10px; }
+  .cli { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 12px; width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px; cursor: pointer; }
+  .cli:active { background: var(--panel2); }
+  .punto { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .p-ok { background: var(--ok); box-shadow: 0 0 0 4px rgba(34,197,94,.18); }
+  .p-warn { background: var(--warn); box-shadow: 0 0 0 4px rgba(245,176,65,.18); }
+  .p-bad { background: var(--bad); box-shadow: 0 0 0 4px rgba(244,63,94,.18); }
+  .p-off { background: #555; }
+  .cli .n { flex: 1; min-width: 0; }
+  .cli .n b { display: block; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cli .n small { color: var(--mut); font-size: 14px; }
+  .cli .d { font-weight: 800; font-size: 15px; text-align: right; white-space: nowrap; }
+  .vacio { text-align: center; color: var(--mut); padding: 30px 10px; }
+  .flotante { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 16px); width: min(528px, calc(100% - 32px)); box-shadow: 0 12px 30px rgba(255,122,26,.35); font-size: 17px; padding: 16px; z-index: 5; }
+  .flotante:active { transform: translateX(-50%) scale(.98); }
 
-  /* ---- Secciones ---- */
-  section { padding: 80px 0; }
-  .sec-title { text-align: center; margin-bottom: 44px; }
-  .sec-title h2 { font-size: clamp(30px, 4vw, 44px); margin: 0 0 10px; letter-spacing: -.8px; }
-  .sec-title h2 span { color: var(--accent); }
-  .sec-title p { color: var(--muted); margin: 0 auto; max-width: 620px; font-size: 17px; }
-
-  .games { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-  .game { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; transition: border-color .15s, transform .15s; }
-  .game:hover { border-color: rgba(255,122,26,.5); transform: translateY(-3px); }
-  .game .ico { width: 50px; height: 50px; border-radius: 13px; display: grid; place-items: center; font-size: 26px; margin-bottom: 14px; background: rgba(255,122,26,.12); }
-  .game h3 { margin: 0 0 6px; font-size: 18px; }
-  .game p { margin: 0; color: var(--muted); font-size: 14.5px; }
-
-  .feature { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 50px; align-items: center; margin-bottom: 70px; }
-  .feature.rev { grid-template-columns: 1.15fr 1fr; }
-  .feature.rev .ftxt { order: 2; }
-  .ftxt h3 { font-size: 30px; margin: 0 0 12px; letter-spacing: -.5px; }
-  .ftxt p { color: #c6c6d2; font-size: 16.5px; margin: 0 0 14px; }
-  .ftxt ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
-  .ftxt li { color: #d8d8e2; padding-left: 26px; position: relative; }
-  .ftxt li::before { content: "✓"; position: absolute; left: 0; color: var(--accent); font-weight: 900; }
-  .fimg { border-radius: 16px; overflow: hidden; border: 1px solid var(--line2); box-shadow: 0 20px 60px rgba(0,0,0,.5); }
-
-  /* ---- Instalación ---- */
-  .install { background: linear-gradient(180deg, transparent, rgba(255,122,26,.04)); }
-  .note { max-width: 760px; margin: 0 auto 34px; padding: 16px 20px; border-left: 4px solid var(--accent); background: var(--panel); border-radius: 10px; color: #cfcfdb; }
-  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-  .step { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
-  .step .n { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; background: var(--accent); color: #111; margin-bottom: 12px; }
-  .step h4 { margin: 0 0 6px; font-size: 17px; }
-  .step p { margin: 0; color: var(--muted); font-size: 14.5px; }
-  .smart { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
-  .smart div { width: 300px; border-radius: 12px; overflow: hidden; background: #d8302f; color: #fff; font-size: 13px; box-shadow: 0 16px 40px rgba(0,0,0,.4); }
-  .smart b { display: block; font-size: 17px; font-weight: 500; padding: 14px 16px 6px; }
-  .smart span { display: block; padding: 0 16px 12px; opacity: .92; }
-  .smart i { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px; background: rgba(0,0,0,.18); font-style: normal; }
-  .smart em { font-style: normal; background: #fff; color: #111; padding: 4px 10px; border-radius: 3px; font-size: 12px; }
-  .smart em.hl { outline: 3px solid #ffd54a; }
-
-  /* ---- Precio: el plan a la izquierda, cómo pagar a la derecha ---- */
-  .price-card { --pp: #ffc439; --dc: #5865f2; --wa: #25d366; max-width: 940px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.15fr;
-    background: var(--panel); border: 1px solid rgba(255,122,26,.4); border-radius: 24px; overflow: hidden; box-shadow: 0 30px 80px rgba(255,122,26,.08); }
-  .plan { padding: 36px 34px; background: radial-gradient(120% 90% at 0% 0%, rgba(255,122,26,.2), transparent 60%), var(--bg2); border-right: 1px solid var(--line); }
-  .plan-name { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; }
-  .plan-name img { width: 34px; height: 34px; border-radius: 9px; }
-  .price { display: flex; align-items: flex-end; gap: 10px; font-size: 64px; font-weight: 900; letter-spacing: -2px; line-height: 1; margin: 22px 0 4px; }
-  .price small { font-size: 15px; line-height: 1.2; color: var(--accent2); font-weight: 700; letter-spacing: 0; padding-bottom: 8px; }
-  .plan-sub { color: var(--muted); font-size: 14px; margin: 0; }
-  .planes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 18px 0 12px; }
-  .pl { all: unset; box-sizing: border-box; cursor: pointer; position: relative; display: flex; flex-direction: column; gap: 1px; padding: 10px 12px; border-radius: 13px;
-    background: var(--panel); border: 1.5px solid var(--line); transition: border-color .15s, background .15s; }
-  .pl:hover { border-color: rgba(255,122,26,.55); }
-  .pl:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .pl[aria-selected="true"] { border-color: var(--accent); background: rgba(255,122,26,.12); }
-  .pl .n { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent2); }
-  .pl b { font-size: 22px; font-weight: 900; line-height: 1.1; }
-  .pl s { position: absolute; right: 12px; top: 28px; font-size: 12px; color: var(--muted); }
-  .pl em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--ok); }
-  .pl small { font-size: 11.5px; color: var(--muted); }
-  .pl i { position: absolute; top: -9px; right: 10px; font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .05em; background: var(--accent); color: #150a02; padding: 2px 8px; border-radius: 999px; }
-  .plan ul { list-style: none; padding: 0; margin: 26px 0 0; display: flex; flex-direction: column; gap: 11px; }
-  .plan li { display: flex; gap: 10px; font-size: 15px; }
-  .plan li::before { content: ""; flex: none; width: 18px; height: 18px; margin-top: 2px; border-radius: 50%; background: rgba(34,197,94,.16) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234ade80' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/11px no-repeat; }
-  .pagar { padding: 32px 30px; }
-  .pagar h3 { margin: 0 0 14px; font-size: 18px; }
-  .rutas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .ruta { all: unset; box-sizing: border-box; cursor: pointer; position: relative; display: flex; align-items: center; gap: 11px; padding: 13px 14px;
-    border-radius: 14px; background: var(--bg2); border: 1.5px solid var(--line2); transition: border-color .15s, background .15s; }
-  .ruta:hover { border-color: #4a4a5a; }
-  .ruta:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  .ruta[aria-selected="true"] { border-color: var(--accent); background: rgba(255,122,26,.1); }
-  .ruta img { width: 28px; height: 28px; flex: none; object-fit: contain; }
-  .ruta .flag-co { width: 28px; height: 19px; }
-  .ruta > span:not(.ok):not(.flag-co) { min-width: 0; }
-  .ruta b { display: block; font-size: 15px; line-height: 1.2; }
-  .ruta small { color: var(--muted); font-size: 12.5px; }
-  .ruta .ok { position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; transform: scale(0); transition: transform .18s cubic-bezier(.3,1.6,.5,1); }
-  .ruta .ok svg { width: 12px; height: 12px; }
-  .ruta[aria-selected="true"] .ok { transform: scale(1); }
-  .pasos { list-style: none; margin: 22px 0 0; padding: 0; }
-  .paso { position: relative; display: flex; gap: 14px; padding-bottom: 18px; }
-  .paso:last-child { padding-bottom: 0; }
-  .paso:not(:last-child)::after { content: ""; position: absolute; left: 15px; top: 34px; bottom: 3px; width: 2px; border-radius: 2px; background: var(--line2); }
-  .num { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; background: var(--bg2); border: 1.5px solid var(--line2); color: var(--muted); }
-  .paso:first-child .num { background: var(--accent); border-color: var(--accent); color: #150a02; box-shadow: 0 0 0 5px rgba(255,122,26,.15); }
-  .paso-c { flex: 1; min-width: 0; padding-top: 4px; }
-  .paso-c b { display: block; font-size: 15.5px; }
-  .paso-c p { margin: 3px 0 0; color: var(--muted); font-size: 14px; }
-  .paso-c .acc { margin-top: 12px; }
-  .par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .btn-marca { --m: var(--accent); width: 100%; justify-content: flex-start; gap: 12px; padding: 12px 16px 12px 12px; border-radius: 13px; color: #f4f4f8;
-    background: color-mix(in srgb, var(--m) 11%, #1b1b24); border: 1px solid color-mix(in srgb, var(--m) 48%, transparent); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
-  .btn-marca:hover { background: color-mix(in srgb, var(--m) 22%, #1b1b24); border-color: var(--m); box-shadow: 0 8px 22px color-mix(in srgb, var(--m) 22%, transparent); }
-  .btn-marca:focus-visible { outline: 2px solid var(--m); outline-offset: 3px; }
-  .btn-marca img { width: 26px; height: 26px; flex: none; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
-  .btn-marca span { flex: 1; text-align: center; margin-right: 26px; white-space: normal; }
-  .par .btn-marca span { text-align: left; margin-right: 0; }
-  .btn-marca.paypal { --m: var(--pp); }
-  .btn-marca.discord { --m: var(--dc); }
-  .btn-marca.whatsapp { --m: var(--wa); }
-  .acc .btn-marca.grande { padding-top: 15px; padding-bottom: 15px; font-size: 16.5px; }
-  .pasos.entra { animation: entra .28s cubic-bezier(.2,.8,.3,1); }
-  @keyframes entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  @media (prefers-reduced-motion: reduce) { .pasos.entra { animation: none; } .ruta .ok { transition: none; } }
-  .flag-co { flex: none; width: 28px; height: 19px; border-radius: 4px; background: linear-gradient(#fcd116 0 50%, #003893 50% 75%, #ce1126 75%); box-shadow: 0 0 0 1px rgba(255,255,255,.15); }
-  @media (max-width: 820px) {
-    .price-card { grid-template-columns: minmax(0, 1fr); }
-    .plan { border-right: 0; border-bottom: 1px solid var(--line); padding: 28px 22px; }
-    .pagar { padding: 26px 18px; }
-  }
-  @media (max-width: 420px) { .rutas, .par { grid-template-columns: 1fr; } .btn-marca span { margin-right: 0; } }
-
-  /* ---- Preguntas ---- */
-  .faq { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
-  details { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; }
-  summary { cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none; display: flex; justify-content: space-between; gap: 10px; }
-  summary::after { content: "+"; color: var(--accent); font-size: 22px; line-height: 1; }
-  details[open] summary::after { content: "–"; }
-  details p { color: #c6c6d2; margin: 12px 0 0; }
-
-  footer { border-top: 1px solid var(--line); padding: 34px 0; color: var(--muted); font-size: 14px; }
-  .foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-
-  /* ---- Celular ---- */
-  @media (max-width: 900px) {
-    .links { display: none; }
-    .hero { padding: 44px 0 30px; }
-    .hero-grid, .feature, .feature.rev { grid-template-columns: 1fr; gap: 30px; }
-    .feature.rev .ftxt { order: 0; }
-    .shot { transform: none; }
-    .float { display: none; }
-    .games, .steps { grid-template-columns: 1fr 1fr; }
-    .nav .btn-main { padding: 9px 14px; font-size: 14px; }
-  }
-  @media (max-width: 560px) {
-    .games, .steps { grid-template-columns: 1fr; }
-    section { padding: 56px 0; }
-  }
+  /* ---- hoja de abajo ---- */
+  .fondo { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 10; display: flex; align-items: flex-end; justify-content: center; }
+  .hoja { width: 100%; max-width: 560px; max-height: 92dvh; overflow: auto; background: var(--panel); border-radius: 26px 26px 0 0; padding: 10px 18px calc(var(--safe-b) + 20px); border-top: 1px solid var(--line); animation: sube .22s ease-out; }
+  @keyframes sube { from { transform: translateY(30px); opacity: .6; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .hoja { animation: none; } }
+  .manija { width: 44px; height: 5px; border-radius: 3px; background: #3a3a48; margin: 4px auto 14px; }
+  .hoja h3 { margin: 0; font-size: 22px; }
+  .hoja .sub { color: var(--mut); margin: 4px 0 16px; font-size: 15px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .sec { font-size: 13px; color: var(--mut); text-transform: none; margin: 18px 0 8px; font-weight: 700; }
+  .msg { overflow-wrap: anywhere; background: #101016; border: 1px solid var(--line); border-radius: 14px; padding: 12px; white-space: pre-wrap; font-size: 15px; margin: 12px 0; }
+  .fila { display: flex; gap: 10px; }
+  .fila > * { flex: 1; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { all: unset; cursor: pointer; padding: 10px 14px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); font-weight: 700; }
+  .chip.sel { background: rgba(255,122,26,.16); border-color: var(--or); color: var(--or2); }
+  .aviso { position: fixed; left: 16px; right: 16px; margin: 0 auto; width: fit-content; top: calc(var(--safe-t) + 14px); background: #1f2b22; border: 1px solid rgba(34,197,94,.5); color: #b8f5cf; padding: 12px 18px; border-radius: 14px; z-index: 20; font-weight: 700; max-width: 528px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  .aviso.mal { background: #2b1a1f; border-color: rgba(244,63,94,.5); color: #fda4af; }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="wrap nav">
-    <a class="brand" href="#"><img src="img/icon.png" alt="">Program<span>Fox</span></a>
-    <nav class="links">
-      <a href="#juegos">Juegos</a>
-      <a href="#funciones">Funciones</a>
-      <a href="#instalar">Instalación</a>
-      <a href="#precio">Precio</a>
-      <a href="#faq">Preguntas</a>
-    </nav>
-    <a class="btn btn-main js-download" href="#instalar">Descargar</a>
-  </div>
-</header>
+<!-- ============ ENTRAR ============ -->
+<section id="vEntrar" class="entrar" hidden>
+  <div class="marca"><img src="icono.png" alt=""><div><b>ProgramFox · Clientes</b><small>Panel del dueño</small></div></div>
+  <form class="caja" id="fEntrar" autocomplete="on">
+    <h2>Entrar</h2>
+    <p class="muted" style="margin:0">Con tu cuenta de dueño de ProgramFox.</p>
+    <label for="eUsuario">Usuario</label>
+    <input id="eUsuario" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    <label for="eClave">Contraseña</label>
+    <input id="eClave" type="password" autocomplete="current-password" required>
+    <button class="btn pri full" style="margin-top:18px" id="eBtn">Entrar</button>
+    <div class="err" id="eErr"></div>
+  </form>
+</section>
 
-<!-- ======================= PORTADA ======================= -->
-<div class="hero">
-  <div class="wrap hero-grid">
-    <div>
-      <span class="pill"><span class="dot"></span> Hecho para TikTok LIVE</span>
-      <h1>Tu chat <span class="hl">controla</span><br>tu LIVE</h1>
-      <p class="lead">Regalos, likes y comentarios que activan juegos, efectos de GTA V, comandos de Minecraft, alertas y voz. Todo desde un solo programa, en español.</p>
-      <div class="cta">
-        <a class="btn btn-main btn-big js-download" href="#instalar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          Descargar para Windows
-        </a>
-        <a class="btn btn-ghost btn-big" href="#funciones">Ver cómo funciona ↓</a>
-      </div>
-      <div class="checks"><span><b>✓</b>Windows 10 y 11</span><span><b>✓</b>OBS y TikTok LIVE Studio</span><span><b>✓</b>Soporte en Discord</span></div>
-    </div>
-    <div style="position:relative">
-      <div class="shot"><img src="img/app-juegos.png" alt="ProgramFox - catálogo de juegos"></div>
-      <div class="float f1">🌹 Rosa ×25</div>
-      <div class="float f2">❤️ +1.2k likes</div>
-      <div class="float f3">⚡ ¡Efecto activado!</div>
-    </div>
-  </div>
-</div>
-
-<!-- ======================= JUEGOS ======================= -->
-<section id="juegos">
-  <div class="wrap">
-    <div class="sec-title">
-      <h2>Juegos que tu <span>audiencia</span> mueve</h2>
-      <p>Cada regalo, like o comentario hace algo en tu stream. Tus espectadores dejan de mirar y empiezan a jugar.</p>
-    </div>
-    <div class="games">
-      <div class="game"><div class="ico">🚗</div><h3>GTA V · Modo Caos</h3><p>Más de 360 efectos: tanques, meteoritos, gravedad loca, fin del mundo… instalado con un clic.</p></div>
-      <div class="game"><div class="ico">⛏️</div><h3>Minecraft</h3><p>Los regalos invocan mobs, TNT, rayos y lo que quieras. Compatible con tus comandos de TikFinity.</p></div>
-      <div class="game"><div class="ico">🌎</div><h3>Juego de Banderas</h3><p>El chat se divide por países y los regalos suman puntos. Rondas con reloj y TOP 3 en pantalla.</p></div>
-      <div class="game"><div class="ico">🎮</div><h3>Cualquier juego de PC</h3><p>Convierte cada regalo en una tecla y deja que tu LIVE controle el juego que quieras.</p></div>
-    </div>
+<!-- ============ ACTIVAR CÓDIGO DE 2 PASOS (primera vez) ============ -->
+<section id="vActivar" class="entrar" hidden>
+  <div class="caja">
+    <h2>🔐 Activa el código de 2 pasos</h2>
+    <p class="muted" style="margin:4px 0 0">Así, aunque alguien sepa tu contraseña, sin tu celular no entra.</p>
+    <ol class="pasos">
+      <li>Instala <b>Google Authenticator</b> (o Microsoft Authenticator).</li>
+      <li>Tócale <b>+</b> → <b>Escanear código QR</b> y escanea este código. Si estás en el mismo celular, toca <b>Ingresar clave</b> y copia la clave de abajo.</li>
+      <li>Escribe aquí el número de 6 dígitos que te muestra.</li>
+    </ol>
+    <div class="qr"><img id="aQr" alt="Código QR"></div>
+    <div class="secreto" id="aSecreto"></div>
+    <button class="btn full" style="margin-top:10px" id="aCopiar">Copiar clave</button>
+    <label for="aCodigo">Código de 6 números</label>
+    <input id="aCodigo" class="codigo" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+    <button class="btn pri full" style="margin-top:14px" id="aBtn">Activar</button>
+    <div class="err" id="aErr"></div>
   </div>
 </section>
 
-<!-- ======================= FUNCIONES ======================= -->
-<section id="funciones" style="padding-top:20px">
-  <div class="wrap">
-    <div class="feature">
-      <div class="ftxt">
-        <h3>Acciones y eventos sin complicarte</h3>
-        <p>Eliges el regalo, eliges lo que pasa. Busca entre cientos de efectos en español y ponlos en segundos.</p>
-        <ul>
-          <li>Todos los regalos de TikTok con su imagen</li>
-          <li>Efectos al azar, combos y tiempos de espera</li>
-          <li>Perfiles distintos para cada juego</li>
-        </ul>
-      </div>
-      <div class="fimg"><img src="img/app-gta.png" alt="Elegir efectos de GTA V en una acción"></div>
-    </div>
-
-    <div class="feature rev">
-      <div class="ftxt">
-        <h3>Alertas y videos en 10 pantallas</h3>
-        <p>Pon una alerta en el centro y los videos en una esquina. Cada pantalla es una fuente de OBS y tiene su propia fila.</p>
-        <ul>
-          <li>Imágenes, GIF y videos con sonido</li>
-          <li>Funciona en OBS y TikTok LIVE Studio</li>
-          <li>Fondo transparente, listo para usar</li>
-        </ul>
-      </div>
-      <div class="fimg"><img src="img/app-pantallas.png" alt="Pantallas de overlays para OBS"></div>
-    </div>
-
-    <div class="feature">
-      <div class="ftxt">
-        <h3>Tu chat con voz</h3>
-        <p>Un bot lee los comentarios de tu LIVE con voces naturales en español, con filtros para que no se lea cualquier cosa.</p>
-        <ul>
-          <li>Voces de Colombia, México, España y más</li>
-          <li>Solo seguidores, suscriptores o con comando</li>
-          <li>Filtro de palabras y enlaces</li>
-        </ul>
-      </div>
-      <div class="fimg"><img src="img/app-voz.png" alt="Voz del chat"></div>
-    </div>
-  </div>
+<!-- ============ PEDIR CÓDIGO ============ -->
+<section id="vCodigo" class="entrar" hidden>
+  <div class="marca"><img src="icono.png" alt=""><div><b>ProgramFox · Clientes</b><small>Código de 2 pasos</small></div></div>
+  <form class="caja" id="fCodigo">
+    <h2>Escribe tu código</h2>
+    <p class="muted" style="margin:0">El de 6 números de tu app de verificación.</p>
+    <input id="cCodigo" class="codigo" style="margin-top:16px" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required>
+    <button class="btn pri full" style="margin-top:16px" id="cBtn">Entrar</button>
+    <button type="button" class="btn full" style="margin-top:10px" id="cSalir">Salir</button>
+    <div class="err" id="cErr"></div>
+  </form>
 </section>
 
-<!-- ======================= INSTALACIÓN ======================= -->
-<section id="instalar" class="install">
-  <div class="wrap">
-    <div class="sec-title">
-      <h2>Fácil <span>instalación</span></h2>
-      <p>Descargas, abres y listo. Se actualiza solo cada vez que sacamos algo nuevo.</p>
-    </div>
-    <div class="note">
-      El programa aún no tiene firma digital (los certificados son muy costosos), por eso Windows puede mostrar un aviso la primera vez.
-      Es normal: toca <b>"Más información"</b> y luego <b>"Ejecutar de todas formas"</b>.
-    </div>
-    <div class="steps">
-      <div class="step"><div class="n">1</div><h4>Descarga</h4><p>Toca el botón de abajo y guarda <b>ProgramFox-Setup.exe</b>.</p></div>
-      <div class="step"><div class="n">2</div><h4>Ábrelo</h4><p>Si sale el aviso rojo: "Más información" → "Ejecutar de todas formas".</p></div>
-      <div class="step"><div class="n">3</div><h4>Entra</h4><p>Escribe el usuario y la contraseña que te damos al comprar.</p></div>
-      <div class="step"><div class="n">4</div><h4>Conecta</h4><p>Pon tu usuario de TikTok, conecta tu LIVE y crea tus acciones.</p></div>
-    </div>
-    <div class="smart">
-      <div><b>Windows protegió su PC</b><span>SmartScreen de Microsoft Defender impidió el inicio de una aplicación desconocida. <u>Más información</u></span><i><em>No ejecutar</em></i></div>
-      <div><b>Windows protegió su PC</b><span>Aplicación: ProgramFox-Setup.exe<br>Editor: Editor desconocido</span><i><em class="hl">Ejecutar de todas formas</em><em>No ejecutar</em></i></div>
-    </div>
-    <div class="cta" style="justify-content:center;margin-top:34px">
-      <a class="btn btn-main btn-big js-download" href="#">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-        Descargar ProgramFox
-      </a>
-    </div>
-  </div>
+<!-- ============ BLOQUEO (celular anclado: solo tu PIN) ============ -->
+<section id="vBloqueo" class="entrar" hidden>
+  <div class="marca"><img src="icono.png" alt=""><div><b>ProgramFox · Clientes</b><small>📌 Anclado a este celular</small></div></div>
+  <form class="caja" id="fBloqueo">
+    <h2>🔒 Escribe tu PIN</h2>
+    <p class="muted" style="margin:0">Pasaron 15 minutos sin usarlo. Tu sesión sigue abierta.</p>
+    <input id="bPin" class="codigo" type="password" style="margin-top:16px" inputmode="numeric" maxlength="6" autocomplete="off" required>
+    <button class="btn pri full" style="margin-top:16px" id="bBtn">Abrir</button>
+    <button type="button" class="btn full" style="margin-top:10px" id="bSalir">Salir de la cuenta</button>
+    <div class="err" id="bErr"></div>
+  </form>
 </section>
 
-<!-- ======================= PRECIO ======================= -->
-<section id="precio">
-  <div class="wrap">
-    <div class="sec-title"><h2>Un <span>plan</span>, todo incluido</h2><p>Paga 1 mes, 3 meses, 6 meses o 1 año. Sin letras pequeñas y sin cobros automáticos.</p></div>
-    <div class="price-card">
-      <div class="plan">
-        <div class="plan-name"><img src="img/icon.png" alt="">ProgramFox Pro</div>
-        <div class="price"><span class="js-price">$15</span><small>USD<br><span class="js-per">al mes</span></small></div>
-        <div class="planes js-planes" role="tablist" aria-label="¿Por cuánto tiempo?"></div>
-        <p class="plan-sub">Pago único: no se cobra solo. Si ya tienes cuenta, se suma a tu fecha.</p>
-        <ul>
-          <li>Todos los juegos (GTA V, Minecraft, Banderas…)</li>
-          <li>Acciones, eventos y perfiles ilimitados</li>
-          <li>Voz del chat y 10 pantallas de overlays</li>
-          <li>Mods para juegos de PC</li>
-          <li>Se actualiza solo</li>
-          <li>Soporte en Discord y WhatsApp</li>
-        </ul>
-      </div>
-      <div class="pagar">
-        <h3>¿Cómo quieres pagar?</h3>
-        <div class="rutas" role="tablist">
-          <button type="button" class="ruta" role="tab" data-ruta="pp" aria-selected="true">
-            <img src="img/paypal.png" alt=""><span><b>PayPal</b><small>Tarjeta o saldo</small></span>
-            <span class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="#150a02" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
-          </button>
-          <button type="button" class="ruta js-co" role="tab" data-ruta="co" aria-selected="false">
-            <span class="flag-co" aria-hidden="true"></span><span><b>Desde Colombia</b><small>Pesos, por WhatsApp</small></span>
-            <span class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="#150a02" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
-          </button>
-        </div>
-        <ol class="pasos" data-para="pp">
-          <li class="paso"><span class="num">1</span><div class="paso-c"><b>Paga <span class="js-paga">$15 USD</span> con PayPal</b><p>Con tarjeta o con tu saldo de PayPal.</p>
-            <div class="acc"><a class="btn btn-marca paypal grande js-paypal" href="#" target="_blank" rel="noopener"><img src="img/paypal.png" alt=""><span>Pagar con PayPal</span></a></div></div></li>
-          <li class="paso"><span class="num">2</span><div class="paso-c"><b>Manda la captura del pago</b><p>En un ticket privado de Discord o por WhatsApp, como prefieras.</p>
-            <div class="acc par">
-              <a class="btn btn-marca discord js-discord" href="#" target="_blank" rel="noopener"><img src="img/discord.png" alt=""><span>Discord</span></a>
-              <a class="btn btn-marca whatsapp js-wa-comp" href="#" target="_blank" rel="noopener"><img src="img/whatsapp.png" alt=""><span>WhatsApp</span></a>
-            </div></div></li>
-          <li class="paso"><span class="num">3</span><div class="paso-c"><b>Te creamos tu cuenta</b><p>Te mandamos tu usuario y contraseña, normalmente en pocos minutos.</p></div></li>
-        </ol>
-        <ol class="pasos js-co" data-para="co" hidden>
-          <li class="paso"><span class="num">1</span><div class="paso-c"><b>Escríbenos por WhatsApp</b><p>El mensaje ya va escrito, solo envíalo.</p>
-            <div class="acc"><a class="btn btn-marca whatsapp grande js-whatsapp" href="#" target="_blank" rel="noopener"><img src="img/whatsapp.png" alt=""><span>Escribir por WhatsApp</span></a></div></div></li>
-          <li class="paso"><span class="num">2</span><div class="paso-c"><b>Paga en pesos</b><p>Te damos los datos para pagar y nos mandas la captura por el mismo chat.</p></div></li>
-          <li class="paso"><span class="num">3</span><div class="paso-c"><b>Te creamos tu cuenta</b><p>Te mandamos tu usuario y contraseña apenas confirmemos el pago.</p></div></li>
-        </ol>
-      </div>
-    </div>
+<!-- ============ PANEL ============ -->
+<section id="vPanel" hidden>
+  <div class="barra"><img src="icono.png" alt=""><b>Clientes</b><button class="btn" id="pRecargar" aria-label="Actualizar">↻</button><button class="btn" id="pAnclar" aria-label="Anclar a este celular">📌</button><button class="btn" id="pSalir">Salir</button></div>
+  <div class="resumen">
+    <div class="v"><b id="rAct">0</b><span>Activos</span></div>
+    <div class="a"><b id="rPronto">0</b><span>Vencen pronto</span></div>
+    <div class="r"><b id="rVenc">0</b><span>Vencidos</span></div>
   </div>
+  <input class="buscar" id="pBuscar" placeholder="Buscar cliente…" autocapitalize="none" spellcheck="false">
+  <div class="lista" id="pLista"><div class="vacio">Cargando…</div></div>
+  <button class="btn pri flotante" id="pNuevo">＋ Cliente nuevo</button>
 </section>
 
-<!-- ======================= PREGUNTAS ======================= -->
-<section id="faq" style="padding-top:20px">
-  <div class="wrap">
-    <div class="sec-title"><h2>Preguntas <span>frecuentes</span></h2></div>
-    <div class="faq">
-      <details><summary>¿Qué necesito para usarlo?</summary><p>Un computador con Windows 10 u 11 e internet. Para mostrar alertas en tu LIVE usas OBS o TikTok LIVE Studio (los dos son gratis).</p></details>
-      <details><summary>¿Es seguro? Windows me sale un aviso rojo</summary><p>Sí. El aviso sale porque el programa no tiene firma digital (cuesta mucho dinero al año). Toca "Más información" y "Ejecutar de todas formas". Lo mismo pasa con muchos programas para streamers.</p></details>
-      <details><summary>¿Cómo se actualiza?</summary><p>Solo. Cuando sacamos una versión nueva, al abrir el programa se descarga e instala automáticamente. Tus acciones y configuraciones no se pierden.</p></details>
-      <details><summary>¿Necesito tener GTA V o Minecraft?</summary><p>Solo si quieres usar esos juegos. Para GTA V necesitas la versión de PC en modo historia; para Minecraft, un servidor con el plugin ServerTap (te ayudamos a armarlo).</p></details>
-      <details><summary>¿Puedo usarlo en varias cuentas de TikTok?</summary><p>Cada licencia sirve para una cuenta de TikTok. Si cambias de cuenta, escríbenos en Discord y te la cambiamos.</p></details>
-      <details><summary>¿Cómo pago y cuánto tarda la activación?</summary><p>Pagas con PayPal, mandas la captura por Discord o por WhatsApp (como prefieras) y te creamos tu usuario y contraseña. Normalmente en pocos minutos.</p></details>
-      <details><summary>Estoy en Colombia y no puedo pagar con PayPal</summary><p>No hay problema: escríbenos por <a class="js-whatsapp" href="#" target="_blank" rel="noopener" style="color:#4ade80;font-weight:700">WhatsApp</a> y te damos los datos para pagar en pesos. Apenas confirmemos el pago te creamos tu usuario y contraseña.</p></details>
-    </div>
-  </div>
-</section>
+<!-- ============ HOJA (cliente / nuevo / mensaje) ============ -->
+<div class="fondo" id="hFondo" hidden><div class="hoja" id="hoja" role="dialog" aria-modal="true"></div></div>
+<div class="aviso" id="aviso" hidden></div>
 
-<footer>
-  <div class="wrap foot">
-    <div class="brand" style="font-size:16px"><img src="img/icon.png" alt="" style="width:28px;height:28px">Program<span>Fox</span></div>
-    <div>© <span class="js-year">2026</span> ProgramFox · EDAMLAB. No afiliado a TikTok.</div>
-    <a class="js-discord" href="#" target="_blank" rel="noopener" style="color:#8f98ff">Discord</a>
-  </div>
-</footer>
-
+<script src="../o/supabase.js"></script>
+<script src="../o/pf-config.js"></script>
 <script>
-  // ============================================================
-  //  CONFIG: pon aquí tus datos
-  // ============================================================
-  const CONFIG = {
-    githubUsuario: 'edamfox5522',                               // tu usuario de GitHub (ej: 'edamfox')
-    githubRepo: 'programfox',
-    discord: 'https://discord.gg/F8cMygWUwY',
-    paypal: 'https://www.paypal.me/vanegas5522',                 // sin el monto: se pone solo según el plan
-    // planes (precio total en USD); el de 1 mes es el normal
-    planes: [
-      { meses: 1, precio: 15 },
-      { meses: 3, precio: 40 },
-      { meses: 6, precio: 80 },
-      { meses: 12, precio: 150 }
-    ],
-    whatsapp: '573052667718',                                   // tu número con indicativo, sin + ni espacios ('' = no sale)
-    precio: '$15'
-  };
+'use strict';
+const DOMINIO = 'programfox.app';
+const DESCARGA = 'https://github.com/edamfox5522/programfox/releases/latest/download/ProgramFox-Setup.exe';
+const DISCORD = 'https://discord.gg/F8cMygWUwY';
+const INACTIVO_MIN = 15;                       // se cierra sola si no la usas
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  // El botón de descarga siempre baja la versión más nueva
-  const descarga = CONFIG.githubUsuario
-    ? `https://github.com/${CONFIG.githubUsuario}/${CONFIG.githubRepo}/releases/latest/download/ProgramFox-Setup.exe`
-    : CONFIG.discord;
-  document.querySelectorAll('.js-download').forEach(a => {
-    if (a.getAttribute('href') === '#instalar' && a.closest('header, .hero')) {
-      // el botón de arriba primero lleva a los pasos de instalación
-      a.addEventListener('click', () => setTimeout(() => { location.href = descarga; }, 700));
-    } else {
-      a.href = descarga;
-    }
-  });
-  document.querySelectorAll('.js-discord').forEach(a => { a.href = CONFIG.discord; });
-  // Planes: 1 mes, 3 meses, 6 meses, 1 año (el PayPal y los mensajes cambian según el que escojas)
-  const mes = CONFIG.planes[0].precio / CONFIG.planes[0].meses;
-  const dinero = (n) => '$' + (Math.round(n * 100) % 100 ? n.toFixed(2) : String(Math.round(n)));
-  const PLANES = CONFIG.planes.map(p => ({ ...p, nombre: p.meses === 12 ? '1 año' : p.meses === 1 ? '1 mes' : p.meses + ' meses', normal: mes * p.meses, ahorro: mes * p.meses - p.precio }));
-  const mejor = PLANES.reduce((m, p, i) => (p.precio / p.meses < PLANES[m].precio / PLANES[m].meses ? i : m), 0);
-  const waUrl = !!CONFIG.whatsapp;   // ¿sale la opción de Colombia?
-  const caja = document.querySelector('.js-planes');
-  caja.innerHTML = PLANES.map((p, i) => `<button type="button" class="pl" role="tab" data-pl="${i}" aria-selected="${i === 0}">${i === mejor && p.ahorro > 0 ? '<i>MEJOR PRECIO</i>' : ''}
-      <span class="n">${p.nombre}</span><b>${dinero(p.precio)}</b>${p.ahorro > 0 ? `<s>${dinero(p.normal)}</s><em>Ahorras ${dinero(p.ahorro)}</em>` : `<small>${p.meses === 1 ? 'pago mensual' : 'pago único'}</small>`}</button>`).join('');
-  function escogerPlan(i) {
-    const p = PLANES[i], extra = i > 0 ? ` (plan de ${p.nombre}, ${dinero(p.precio)} USD)` : '';
-    caja.querySelectorAll('.pl').forEach(b => b.setAttribute('aria-selected', String(Number(b.dataset.pl) === i)));
-    document.querySelectorAll('.js-price').forEach(e => { e.textContent = dinero(p.precio); });
-    document.querySelectorAll('.js-per').forEach(e => { e.textContent = p.meses === 1 ? 'al mes' : 'por ' + p.nombre; });
-    document.querySelectorAll('.js-paga').forEach(e => { e.textContent = dinero(p.precio) + ' USD'; });
-    document.querySelectorAll('.js-paypal').forEach(a => { a.href = `${CONFIG.paypal.replace(/\/+$/, '')}/${p.precio}USD`; });
-    if (CONFIG.whatsapp) {
-      const co = `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Hola, soy de Colombia y quiero comprar una cuenta de ProgramFox${i > 0 ? ' por ' + p.nombre : ''} pagando en pesos (no puedo pagar con PayPal).`)}`;
-      document.querySelectorAll('.js-whatsapp').forEach(a => { a.href = co; });
-      const comp = `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(`Hola, ya pagué ProgramFox con PayPal${extra} y te mando el comprobante.`)}`;
-      document.querySelectorAll('.js-wa-comp').forEach(a => { a.href = comp; });
-    }
+// la sesión se guarda en este celular: sin anclar se borra si pasan 15 minutos sin usarla; anclada solo pide el PIN
+const LS = { getItem: (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } }, setItem: (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} }, removeItem: (k) => { try { localStorage.removeItem(k); } catch (_) {} } };
+const sb = supabase.createClient(window.PF_CFG.url, window.PF_CFG.key, { auth: { storage: LS, storageKey: 'pf-panel', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+
+function ver(id) { for (const v of ['vEntrar', 'vActivar', 'vCodigo', 'vBloqueo', 'vPanel']) $(v).hidden = v !== id; }
+function aviso(t, mal) { const a = $('aviso'); a.textContent = t; a.className = 'aviso' + (mal ? ' mal' : ''); a.hidden = false; clearTimeout(aviso.t); aviso.t = setTimeout(() => { a.hidden = true; }, 2600); }
+async function copiar(t) { try { await navigator.clipboard.writeText(t); return true; } catch (_) { const x = document.createElement('textarea'); x.value = t; document.body.appendChild(x); x.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (__) {} x.remove(); return ok; } }
+
+// ---------- anclar a este celular ----------
+// Anclado: la sesión NO se cierra. Si pasan 15 min sin usarlo, solo pide tu PIN (4 a 6 números).
+// El PIN se guarda en este celular como huella (SHA-256 con sal), nunca el número. 5 PIN malos = se cierra la sesión.
+const anclado = () => LS.getItem('pf-panel-anclado') === '1' && !!LS.getItem('pf-panel-pin') && !!LS.getItem('pf-panel-sal');
+const hex = (a) => Array.from(a, (x) => x.toString(16).padStart(2, '0')).join('');
+async function huellaPin(pin, sal) { return hex(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sal + ':' + pin)))); }
+async function anclar(pin) {
+  const a = new Uint8Array(16); crypto.getRandomValues(a);
+  const sal = hex(a);
+  LS.setItem('pf-panel-sal', sal); LS.setItem('pf-panel-pin', await huellaPin(pin, sal));
+  LS.setItem('pf-panel-anclado', '1'); LS.removeItem('pf-panel-fallos');
+}
+function desanclar() { for (const k of ['pf-panel-anclado', 'pf-panel-pin', 'pf-panel-sal', 'pf-panel-fallos']) LS.removeItem(k); }
+function bloquear() { cerrarHoja(); $('bPin').value = ''; $('bErr').textContent = ''; ver('vBloqueo'); setTimeout(() => $('bPin').focus(), 50); }
+$('fBloqueo').onsubmit = async (e) => {
+  e.preventDefault();
+  const pin = $('bPin').value.replace(/\D/g, '');
+  if (pin.length < 4) { $('bErr').textContent = 'Son 4 a 6 números'; return; }
+  if (await huellaPin(pin, LS.getItem('pf-panel-sal') || '') === LS.getItem('pf-panel-pin')) {
+    LS.removeItem('pf-panel-fallos'); tocar(); await paso2(); return;
   }
-  caja.addEventListener('click', (e) => { const b = e.target.closest('[data-pl]'); if (b) escogerPlan(Number(b.dataset.pl)); });
-  escogerPlan(0);
-  if (!CONFIG.whatsapp) document.querySelectorAll('.js-wa-comp').forEach(a => a.remove());
-  if (!waUrl) document.querySelectorAll('.js-co').forEach(e => e.remove());
-  // ¿Cómo quieres pagar? (si estás en Colombia sale escogido "Desde Colombia")
-  function escogerRuta(id, animar) {
-    document.querySelectorAll('.ruta').forEach(b => b.setAttribute('aria-selected', String(b.dataset.ruta === id)));
-    document.querySelectorAll('.pasos').forEach(ol => {
-      const ver = ol.dataset.para === id; ol.hidden = !ver;
-      if (ver && animar) { ol.classList.remove('entra'); void ol.offsetWidth; ol.classList.add('entra'); }
-    });
+  const f = Number(LS.getItem('pf-panel-fallos') || 0) + 1;
+  LS.setItem('pf-panel-fallos', String(f));
+  $('bPin').value = '';
+  if (f >= 5) { await salir(); aviso('5 PIN incorrectos: entra otra vez con tu contraseña', true); return; }
+  $('bErr').textContent = `PIN incorrecto (te quedan ${5 - f} intentos)`;
+};
+$('bSalir').onclick = () => salir();
+
+function hojaAnclar() {
+  if (anclado()) {
+    abrirHoja(`<h3>📌 Anclado a este celular</h3><p class="sub">Tu sesión no se cierra. Si pasan ${INACTIVO_MIN} minutos sin usarlo, solo te pide tu PIN.</p>
+      <div class="grid2"><button class="btn" id="anCambiar">Cambiar PIN</button><button class="btn bad" id="anQuitar">Desanclar</button></div>
+      <button class="btn full" style="margin-top:10px" id="anListo">Listo</button>`);
+    $('anCambiar').onclick = () => { desanclar(); hojaAnclar(); };
+    $('anQuitar').onclick = () => { desanclar(); cerrarHoja(); aviso('Desanclado: se vuelve a cerrar a los 15 min'); };
+    $('anListo').onclick = cerrarHoja;
+    return;
   }
-  document.querySelectorAll('.ruta').forEach(b => b.addEventListener('click', () => escogerRuta(b.dataset.ruta, true)));
-  try { if (waUrl && Intl.DateTimeFormat().resolvedOptions().timeZone === 'America/Bogota') escogerRuta('co', false); } catch (_) {}
-  document.querySelectorAll('.js-year').forEach(e => { e.textContent = new Date().getFullYear(); });
+  abrirHoja(`<h3>📌 Anclar a este celular</h3><p class="sub">Solo si este celular es <b>tuyo</b>. La sesión ya no se cierra: si pasan ${INACTIVO_MIN} minutos sin usarlo, en vez de tu contraseña y el código de 2 pasos solo te pide un PIN.</p>
+    <label for="anPin">PIN nuevo (4 a 6 números)</label><input id="anPin" class="codigo" type="password" inputmode="numeric" maxlength="6" autocomplete="off">
+    <label for="anPin2">Repite el PIN</label><input id="anPin2" class="codigo" type="password" inputmode="numeric" maxlength="6" autocomplete="off">
+    <button class="btn pri full" style="margin-top:18px" id="anBtn">📌 Anclar</button>
+    <button class="btn full" style="margin-top:10px" id="anNo">Ahora no</button>
+    <div class="err" id="anErr"></div>`);
+  setTimeout(() => $('anPin').focus(), 80);
+  $('anNo').onclick = cerrarHoja;
+  $('anBtn').onclick = async () => {
+    const a = $('anPin').value.replace(/\D/g, ''), b = $('anPin2').value.replace(/\D/g, '');
+    if (a.length < 4) { $('anErr').textContent = 'El PIN: 4 a 6 números'; return; }
+    if (/^(\d)\1+$/.test(a) || '0123456789'.includes(a) || '9876543210'.includes(a)) { $('anErr').textContent = 'Muy fácil de adivinar: usa otros números'; return; }
+    if (a !== b) { $('anErr').textContent = 'Los dos PIN no son iguales'; return; }
+    await anclar(a); cerrarHoja(); aviso('📌 Listo: este celular queda anclado');
+  };
+}
+$('pAnclar').onclick = hojaAnclar;
+
+// ---------- inactividad ----------
+function tocar() { LS.setItem('pf-panel-ultimo', String(Date.now())); }
+['click', 'keydown', 'touchstart'].forEach((e) => document.addEventListener(e, tocar, { passive: true }));
+const inactivo = () => { const u = Number(LS.getItem('pf-panel-ultimo') || 0); return !!u && Date.now() - u > INACTIVO_MIN * 60000; };
+async function revisarInactivo() {
+  if ($('vPanel').hidden || !inactivo()) return;
+  if (anclado()) bloquear();
+  else { await salir(); aviso('Se cerró por seguridad (15 min sin usar)'); }
+}
+setInterval(revisarInactivo, 30000);
+// al volver a la app (por ejemplo después de usar WhatsApp), se revisa de una
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') revisarInactivo(); });
+
+// ---------- entrar ----------
+async function arrancar() {
+  if (inactivo() && !anclado()) await sb.auth.signOut().catch(() => {});
+  const { data } = await sb.auth.getSession();
+  if (!data.session) { ver('vEntrar'); return; }
+  if (anclado() && inactivo()) { bloquear(); return; }
+  await paso2();
+}
+
+$('fEntrar').onsubmit = async (e) => {
+  e.preventDefault();
+  const b = $('eBtn'); b.disabled = true; $('eErr').textContent = '';
+  let u = $('eUsuario').value.trim().toLowerCase();
+  if (!u.includes('@')) u = `${u}@${DOMINIO}`;
+  const { error } = await sb.auth.signInWithPassword({ email: u, password: $('eClave').value });
+  b.disabled = false;
+  if (error) { $('eErr').textContent = /invalid/i.test(error.message) ? 'Usuario o contraseña incorrectos' : error.message; return; }
+  $('eClave').value = '';
+  tocar();
+  await paso2();
+};
+
+// ---------- código de 2 pasos ----------
+let factorId = '';
+async function paso2() {
+  const { data: f, error } = await sb.auth.mfa.listFactors();
+  if (error) { $('eErr').textContent = 'No se pudo revisar el código de 2 pasos: ' + error.message; ver('vEntrar'); return; }
+  const listo = (f.totp || []).find((x) => x.status === 'verified');
+  if (!listo) { await activar2(f); return; }
+  factorId = listo.id;
+  const { data: nivel } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (nivel && nivel.currentLevel === 'aal2') { abrirPanel(); return; }
+  $('cCodigo').value = ''; $('cErr').textContent = ''; ver('vCodigo');
+  setTimeout(() => $('cCodigo').focus(), 50);
+}
+
+// el QR llega como SVG pegado sin codificar: lo codifico bien para que siempre se vea
+function qrSeguro(q) {
+  const i = String(q || '').indexOf('<svg');
+  return i >= 0 ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(String(q).slice(i)) : String(q || '');
+}
+async function activar2(f) {
+  // si quedó uno a medias de antes, se borra para empezar limpio
+  for (const x of (f.all || [])) if (x.status !== 'verified') await sb.auth.mfa.unenroll({ factorId: x.id }).catch(() => {});
+  const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Panel ProgramFox ' + new Date().toISOString().slice(0, 10) });
+  if (error) { $('eErr').textContent = 'No se pudo activar el código de 2 pasos: ' + error.message; ver('vEntrar'); return; }
+  factorId = data.id;
+  $('aQr').src = qrSeguro(data.totp.qr_code);
+  $('aSecreto').textContent = data.totp.secret;
+  $('aCopiar').onclick = async () => aviso((await copiar(data.totp.secret)) ? 'Clave copiada' : 'No se pudo copiar', false);
+  $('aCodigo').value = ''; $('aErr').textContent = '';
+  ver('vActivar');
+}
+
+async function verificar(campo, err, btn) {
+  const code = $(campo).value.replace(/\D/g, '');
+  if (code.length !== 6) { $(err).textContent = 'Son 6 números'; return; }
+  $(btn).disabled = true; $(err).textContent = '';
+  const { error } = await sb.auth.mfa.challengeAndVerify({ factorId, code });
+  $(btn).disabled = false;
+  if (error) { $(err).textContent = 'Código incorrecto o vencido. Escribe el que sale ahora.'; return; }
+  tocar();
+  abrirPanel();
+}
+$('aBtn').onclick = () => verificar('aCodigo', 'aErr', 'aBtn');
+$('fCodigo').onsubmit = (e) => { e.preventDefault(); verificar('cCodigo', 'cErr', 'cBtn'); };
+$('cCodigo').oninput = () => { if ($('cCodigo').value.replace(/\D/g, '').length === 6) verificar('cCodigo', 'cErr', 'cBtn'); };
+$('cSalir').onclick = () => salir();
+
+async function salir() { cerrarHoja(); desanclar(); await sb.auth.signOut().catch(() => {}); LS.removeItem('pf-panel-ultimo'); CLIENTES = []; ver('vEntrar'); }
+$('pSalir').onclick = () => salir();
+
+// ---------- hablar con el servidor (la misma función que usa el programa) ----------
+async function admin(accion, datos = {}) {
+  const { data, error } = await sb.functions.invoke('admin-clientes', { body: { accion, dominio: DOMINIO, ...datos } });
+  if (error) {
+    let msg = error.message || 'Error';
+    try { const j = await error.context.json(); if (j && j.error) msg = j.error; } catch (_) {}
+    if (/2 pasos/i.test(msg)) { await paso2(); }
+    throw new Error(msg);
+  }
+  if (data && data.error) throw new Error(data.error);
+  return data;
+}
+
+// ---------- lista de clientes ----------
+let CLIENTES = [];
+const DIA = 86400000;
+function diasRestan(c) { if (!c.activo_hasta) return null; return Math.ceil((new Date(c.activo_hasta).getTime() - Date.now()) / DIA); }
+function estado(c) {
+  const d = diasRestan(c);
+  if (d === null) return { cls: 'p-off', txt: 'Sin activar', orden: 3 };
+  if (d <= 0) return { cls: 'p-bad', txt: d === 0 ? 'Vence hoy' : `Vencido hace ${-d} d`, orden: 0 };
+  if (d <= 3) return { cls: 'p-warn', txt: `Le quedan ${d} d`, orden: 1 };
+  return { cls: 'p-ok', txt: `Le quedan ${d} d`, orden: 2 };
+}
+const usuarioDe = (c) => String(c.nombre || c.email || '').replace('@' + DOMINIO, '');
+
+async function abrirPanel() {
+  ver('vPanel');
+  await cargar();
+  // la primera vez (o hasta que digas que sí), te ofrece anclar este celular
+  if (!anclado() && LS.getItem('pf-panel-ofrecido') !== '1') { LS.setItem('pf-panel-ofrecido', '1'); hojaAnclar(); }
+}
+async function cargar() {
+  $('pLista').innerHTML = '<div class="vacio">Cargando…</div>';
+  try { const r = await admin('listar'); CLIENTES = r.clientes || []; pintar(); }
+  catch (e) { $('pLista').innerHTML = `<div class="vacio">${esc(e.message)}</div>`; }
+}
+function pintar() {
+  const q = $('pBuscar').value.trim().toLowerCase();
+  let act = 0, pronto = 0, venc = 0;
+  for (const c of CLIENTES) { const d = diasRestan(c); if (d === null) continue; if (d <= 0) venc++; else if (d <= 3) { pronto++; act++; } else act++; }
+  $('rAct').textContent = act; $('rPronto').textContent = pronto; $('rVenc').textContent = venc;
+  const lista = CLIENTES.filter((c) => !q || usuarioDe(c).includes(q) || String(c.notas || '').toLowerCase().includes(q))
+    .sort((a, b) => estado(a).orden - estado(b).orden || (diasRestan(a) ?? 1e9) - (diasRestan(b) ?? 1e9));
+  $('pLista').innerHTML = lista.length ? lista.map((c) => {
+    const e = estado(c);
+    return `<button class="cli" data-id="${esc(c.user_id)}"><span class="punto ${e.cls}"></span><span class="n"><b>${esc(usuarioDe(c))}</b><small>${esc(c.notas || (c.pc_nombre ? 'PC: ' + c.pc_nombre : ''))}</small></span><span class="d">${esc(e.txt)}</span></button>`;
+  }).join('') : `<div class="vacio">${q ? 'Nadie con ese nombre' : 'Todavía no tienes clientes. Toca “Cliente nuevo”.'}</div>`;
+}
+$('pBuscar').oninput = pintar;
+$('pRecargar').onclick = cargar;
+$('pLista').onclick = (e) => { const b = e.target.closest('.cli'); if (b) abrirCliente(b.dataset.id); };
+
+// ---------- hoja de abajo ----------
+function abrirHoja(html) { $('hoja').innerHTML = '<div class="manija"></div>' + html; $('hFondo').hidden = false; }
+function cerrarHoja() { $('hFondo').hidden = true; $('hoja').innerHTML = ''; }
+$('hFondo').onclick = (e) => { if (e.target === $('hFondo')) cerrarHoja(); };
+
+function claveNueva() { const ch = 'abcdefghjkmnpqrstuvwxyz23456789'; const a = new Uint32Array(8); crypto.getRandomValues(a); return Array.from(a, (n) => ch[n % ch.length]).join(''); }
+const fecha = (iso) => iso ? new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+function mensaje(usuario, clave, hasta) {
+  return `¡Bienvenido a ProgramFox! 🦊\nUsuario: ${usuario}\nContraseña: ${clave}${hasta ? `\nActivo hasta: ${fecha(hasta)}` : ''}\n\nDescarga: ${DESCARGA}\nAyuda: ${DISCORD}`;
+}
+function hojaMensaje(titulo, texto) {
+  abrirHoja(`<h3>✅ ${esc(titulo)}</h3><p class="sub">Mándale este mensaje (la contraseña no se vuelve a mostrar).</p>
+    <div class="msg">${esc(texto)}</div>
+    <div class="grid2"><button class="btn pri" id="mCopiar">Copiar</button><button class="btn ok" id="mWa">WhatsApp</button></div>
+    <button class="btn full" style="margin-top:10px" id="mCerrar">Listo</button>`);
+  $('mCopiar').onclick = async () => aviso((await copiar(texto)) ? 'Mensaje copiado' : 'No se pudo copiar');
+  $('mWa').onclick = () => { location.href = 'https://wa.me/?text=' + encodeURIComponent(texto); };
+  $('mCerrar').onclick = cerrarHoja;
+}
+
+// ---------- cliente nuevo ----------
+$('pNuevo').onclick = () => {
+  const clave = claveNueva();
+  abrirHoja(`<h3>Cliente nuevo</h3><p class="sub">La contraseña se inventa sola.</p>
+    <label for="nUsuario">Usuario</label><input id="nUsuario" placeholder="ej: juan" autocapitalize="none" spellcheck="false" maxlength="30">
+    <label>Días de licencia</label>
+    <div class="chips" id="nDias">${[[30, '1 mes'], [90, '3 meses'], [180, '6 meses'], [365, '1 año'], [7, '7 días'], [15, '15 días']].map(([d, t], i) => `<button class="chip ${i === 0 ? 'sel' : ''}" data-d="${d}">${t}</button>`).join('')}</div>
+    <label for="nNotas">Notas (solo para ti)</label><input id="nNotas" placeholder="ej: Nequi 13/10 · WhatsApp">
+    <label for="nClave">Contraseña</label><input id="nClave" value="${clave}" autocapitalize="none" spellcheck="false">
+    <button class="btn pri full" style="margin-top:18px" id="nCrear">Crear cliente</button>
+    <div class="err" id="nErr"></div>`);
+  let dias = 30;
+  $('nDias').onclick = (e) => { const b = e.target.closest('.chip'); if (!b) return; dias = Number(b.dataset.d); [...$('nDias').children].forEach((x) => x.classList.toggle('sel', x === b)); };
+  setTimeout(() => $('nUsuario').focus(), 80);
+  $('nCrear').onclick = async () => {
+    const usuario = $('nUsuario').value.trim().toLowerCase().replace(/^@/, '');
+    const pass = $('nClave').value.trim();
+    if (!/^[a-z0-9._-]{3,30}$/.test(usuario)) { $('nErr').textContent = 'El usuario: 3 a 30 letras o números, sin espacios'; return; }
+    if (pass.length < 6) { $('nErr').textContent = 'La contraseña: mínimo 6 caracteres'; return; }
+    const b = $('nCrear'); b.disabled = true; $('nErr').textContent = '';
+    try {
+      const r = await admin('crear', { usuario, password: pass, dias, notas: $('nNotas').value.trim() });
+      await cargar();
+      hojaMensaje(`Se creó ${usuario}`, mensaje(usuario, pass, r.activo_hasta));
+    } catch (e) { $('nErr').textContent = e.message; b.disabled = false; }
+  };
+};
+
+// ---------- un cliente ----------
+function abrirCliente(id) {
+  const c = CLIENTES.find((x) => x.user_id === id);
+  if (!c) return;
+  const e = estado(c), u = usuarioDe(c);
+  abrirHoja(`<h3>${esc(u)}</h3>
+    <p class="sub"><span class="punto ${e.cls}" style="display:inline-block;vertical-align:1px;margin-right:6px"></span>${esc(e.txt)}${c.activo_hasta ? ` · hasta ${esc(fecha(c.activo_hasta))}` : ''}</p>
+    <div class="sec">Sumar días</div>
+    <div class="grid3">${[[30, '1 mes'], [90, '3 meses'], [180, '6 meses'], [365, '1 año'], [7, '7 días'], [1, '1 día']].map(([d, t]) => `<button class="btn ok" data-sumar="${d}">+${t}</button>`).join('')}</div>
+    <div class="sec">Notas (solo para ti)</div>
+    <div class="fila"><input id="kNotas" value="${esc(c.notas || '')}" placeholder="ej: Nequi 13/10"><button class="btn" style="flex:0 0 auto" id="kGuardar">Guardar</button></div>
+    <div class="sec">Cuenta</div>
+    <div class="grid2"><button class="btn" id="kClave">🔑 Nueva contraseña</button><button class="btn" id="kPc" ${c.pc_nombre ? '' : 'disabled'}>💻 Liberar PC</button></div>
+    <button class="btn bad full" style="margin-top:10px" id="kDesactivar">Desactivar ya</button>
+    ${c.pc_nombre ? `<p class="muted" style="font-size:14px;margin:12px 0 0">PC: ${esc(c.pc_nombre)}</p>` : ''}
+    <div class="err" id="kErr"></div>`);
+  const hacer = async (btn, fn) => { btn.disabled = true; $('kErr').textContent = ''; try { await fn(); } catch (er) { $('kErr').textContent = er.message; btn.disabled = false; } };
+  $('hoja').querySelectorAll('[data-sumar]').forEach((b) => b.onclick = () => hacer(b, async () => {
+    const d = Number(b.dataset.sumar); const r = await admin('activar', { user_id: id, dias: d });
+    await cargar(); aviso(`+${d} días a ${u} (hasta ${fecha(r.activo_hasta)})`); abrirCliente(id);
+  }));
+  $('kGuardar').onclick = () => hacer($('kGuardar'), async () => { await admin('notas', { user_id: id, notas: $('kNotas').value.trim() }); await cargar(); aviso('Notas guardadas'); $('kGuardar').disabled = false; });
+  $('kClave').onclick = () => hacer($('kClave'), async () => { const p = claveNueva(); await admin('password', { user_id: id, password: p }); hojaMensaje(`Nueva contraseña para ${u}`, mensaje(u, p, c.activo_hasta)); });
+  $('kPc').onclick = () => hacer($('kPc'), async () => { await admin('liberar_pc', { user_id: id }); await cargar(); aviso('PC liberado: ya puede entrar desde otro PC'); abrirCliente(id); });
+  $('kDesactivar').onclick = () => {
+    const b = $('kDesactivar');
+    if (b.dataset.seguro !== '1') { b.dataset.seguro = '1'; b.textContent = 'Toca otra vez para confirmar'; return; }
+    hacer(b, async () => { await admin('desactivar', { user_id: id }); await cargar(); aviso(`${u} desactivado`); cerrarHoja(); });
+  };
+}
+
+arrancar();
 </script>
 </body>
 </html>
