@@ -158,9 +158,22 @@
   </form>
 </section>
 
+<!-- ============ BLOQUEO (celular anclado: solo tu PIN) ============ -->
+<section id="vBloqueo" class="entrar" hidden>
+  <div class="marca"><img src="icono.png" alt=""><div><b>ProgramFox · Clientes</b><small>📌 Anclado a este celular</small></div></div>
+  <form class="caja" id="fBloqueo">
+    <h2>🔒 Escribe tu PIN</h2>
+    <p class="muted" style="margin:0">Pasaron 15 minutos sin usarlo. Tu sesión sigue abierta.</p>
+    <input id="bPin" class="codigo" type="password" style="margin-top:16px" inputmode="numeric" maxlength="6" autocomplete="off" required>
+    <button class="btn pri full" style="margin-top:16px" id="bBtn">Abrir</button>
+    <button type="button" class="btn full" style="margin-top:10px" id="bSalir">Salir de la cuenta</button>
+    <div class="err" id="bErr"></div>
+  </form>
+</section>
+
 <!-- ============ PANEL ============ -->
 <section id="vPanel" hidden>
-  <div class="barra"><img src="icono.png" alt=""><b>Clientes</b><button class="btn" id="pRecargar" aria-label="Actualizar">↻</button><button class="btn" id="pSalir">Salir</button></div>
+  <div class="barra"><img src="icono.png" alt=""><b>Clientes</b><button class="btn" id="pRecargar" aria-label="Actualizar">↻</button><button class="btn" id="pAnclar" aria-label="Anclar a este celular">📌</button><button class="btn" id="pSalir">Salir</button></div>
   <div class="resumen">
     <div class="v"><b id="rAct">0</b><span>Activos</span></div>
     <div class="a"><b id="rPronto">0</b><span>Vencen pronto</span></div>
@@ -186,28 +199,90 @@ const INACTIVO_MIN = 15;                       // se cierra sola si no la usas
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// la sesión se guarda en este celular, pero se borra si pasan 15 minutos sin usarla
+// la sesión se guarda en este celular: sin anclar se borra si pasan 15 minutos sin usarla; anclada solo pide el PIN
 const LS = { getItem: (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } }, setItem: (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} }, removeItem: (k) => { try { localStorage.removeItem(k); } catch (_) {} } };
 const sb = supabase.createClient(window.PF_CFG.url, window.PF_CFG.key, { auth: { storage: LS, storageKey: 'pf-panel', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
 
-function ver(id) { for (const v of ['vEntrar', 'vActivar', 'vCodigo', 'vPanel']) $(v).hidden = v !== id; }
+function ver(id) { for (const v of ['vEntrar', 'vActivar', 'vCodigo', 'vBloqueo', 'vPanel']) $(v).hidden = v !== id; }
 function aviso(t, mal) { const a = $('aviso'); a.textContent = t; a.className = 'aviso' + (mal ? ' mal' : ''); a.hidden = false; clearTimeout(aviso.t); aviso.t = setTimeout(() => { a.hidden = true; }, 2600); }
 async function copiar(t) { try { await navigator.clipboard.writeText(t); return true; } catch (_) { const x = document.createElement('textarea'); x.value = t; document.body.appendChild(x); x.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (__) {} x.remove(); return ok; } }
+
+// ---------- anclar a este celular ----------
+// Anclado: la sesión NO se cierra. Si pasan 15 min sin usarlo, solo pide tu PIN (4 a 6 números).
+// El PIN se guarda en este celular como huella (SHA-256 con sal), nunca el número. 5 PIN malos = se cierra la sesión.
+const anclado = () => LS.getItem('pf-panel-anclado') === '1' && !!LS.getItem('pf-panel-pin') && !!LS.getItem('pf-panel-sal');
+const hex = (a) => Array.from(a, (x) => x.toString(16).padStart(2, '0')).join('');
+async function huellaPin(pin, sal) { return hex(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sal + ':' + pin)))); }
+async function anclar(pin) {
+  const a = new Uint8Array(16); crypto.getRandomValues(a);
+  const sal = hex(a);
+  LS.setItem('pf-panel-sal', sal); LS.setItem('pf-panel-pin', await huellaPin(pin, sal));
+  LS.setItem('pf-panel-anclado', '1'); LS.removeItem('pf-panel-fallos');
+}
+function desanclar() { for (const k of ['pf-panel-anclado', 'pf-panel-pin', 'pf-panel-sal', 'pf-panel-fallos']) LS.removeItem(k); }
+function bloquear() { cerrarHoja(); $('bPin').value = ''; $('bErr').textContent = ''; ver('vBloqueo'); setTimeout(() => $('bPin').focus(), 50); }
+$('fBloqueo').onsubmit = async (e) => {
+  e.preventDefault();
+  const pin = $('bPin').value.replace(/\D/g, '');
+  if (pin.length < 4) { $('bErr').textContent = 'Son 4 a 6 números'; return; }
+  if (await huellaPin(pin, LS.getItem('pf-panel-sal') || '') === LS.getItem('pf-panel-pin')) {
+    LS.removeItem('pf-panel-fallos'); tocar(); await paso2(); return;
+  }
+  const f = Number(LS.getItem('pf-panel-fallos') || 0) + 1;
+  LS.setItem('pf-panel-fallos', String(f));
+  $('bPin').value = '';
+  if (f >= 5) { await salir(); aviso('5 PIN incorrectos: entra otra vez con tu contraseña', true); return; }
+  $('bErr').textContent = `PIN incorrecto (te quedan ${5 - f} intentos)`;
+};
+$('bSalir').onclick = () => salir();
+
+function hojaAnclar() {
+  if (anclado()) {
+    abrirHoja(`<h3>📌 Anclado a este celular</h3><p class="sub">Tu sesión no se cierra. Si pasan ${INACTIVO_MIN} minutos sin usarlo, solo te pide tu PIN.</p>
+      <div class="grid2"><button class="btn" id="anCambiar">Cambiar PIN</button><button class="btn bad" id="anQuitar">Desanclar</button></div>
+      <button class="btn full" style="margin-top:10px" id="anListo">Listo</button>`);
+    $('anCambiar').onclick = () => { desanclar(); hojaAnclar(); };
+    $('anQuitar').onclick = () => { desanclar(); cerrarHoja(); aviso('Desanclado: se vuelve a cerrar a los 15 min'); };
+    $('anListo').onclick = cerrarHoja;
+    return;
+  }
+  abrirHoja(`<h3>📌 Anclar a este celular</h3><p class="sub">Solo si este celular es <b>tuyo</b>. La sesión ya no se cierra: si pasan ${INACTIVO_MIN} minutos sin usarlo, en vez de tu contraseña y el código de 2 pasos solo te pide un PIN.</p>
+    <label for="anPin">PIN nuevo (4 a 6 números)</label><input id="anPin" class="codigo" type="password" inputmode="numeric" maxlength="6" autocomplete="off">
+    <label for="anPin2">Repite el PIN</label><input id="anPin2" class="codigo" type="password" inputmode="numeric" maxlength="6" autocomplete="off">
+    <button class="btn pri full" style="margin-top:18px" id="anBtn">📌 Anclar</button>
+    <button class="btn full" style="margin-top:10px" id="anNo">Ahora no</button>
+    <div class="err" id="anErr"></div>`);
+  setTimeout(() => $('anPin').focus(), 80);
+  $('anNo').onclick = cerrarHoja;
+  $('anBtn').onclick = async () => {
+    const a = $('anPin').value.replace(/\D/g, ''), b = $('anPin2').value.replace(/\D/g, '');
+    if (a.length < 4) { $('anErr').textContent = 'El PIN: 4 a 6 números'; return; }
+    if (/^(\d)\1+$/.test(a) || '0123456789'.includes(a) || '9876543210'.includes(a)) { $('anErr').textContent = 'Muy fácil de adivinar: usa otros números'; return; }
+    if (a !== b) { $('anErr').textContent = 'Los dos PIN no son iguales'; return; }
+    await anclar(a); cerrarHoja(); aviso('📌 Listo: este celular queda anclado');
+  };
+}
+$('pAnclar').onclick = hojaAnclar;
 
 // ---------- inactividad ----------
 function tocar() { LS.setItem('pf-panel-ultimo', String(Date.now())); }
 ['click', 'keydown', 'touchstart'].forEach((e) => document.addEventListener(e, tocar, { passive: true }));
-setInterval(async () => {
-  const u = Number(LS.getItem('pf-panel-ultimo') || 0);
-  if (!$('vPanel').hidden && u && Date.now() - u > INACTIVO_MIN * 60000) { await salir(); aviso('Se cerró por seguridad (15 min sin usar)'); }
-}, 30000);
+const inactivo = () => { const u = Number(LS.getItem('pf-panel-ultimo') || 0); return !!u && Date.now() - u > INACTIVO_MIN * 60000; };
+async function revisarInactivo() {
+  if ($('vPanel').hidden || !inactivo()) return;
+  if (anclado()) bloquear();
+  else { await salir(); aviso('Se cerró por seguridad (15 min sin usar)'); }
+}
+setInterval(revisarInactivo, 30000);
+// al volver a la app (por ejemplo después de usar WhatsApp), se revisa de una
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') revisarInactivo(); });
 
 // ---------- entrar ----------
 async function arrancar() {
-  const u = Number(LS.getItem('pf-panel-ultimo') || 0);
-  if (u && Date.now() - u > INACTIVO_MIN * 60000) await sb.auth.signOut().catch(() => {});
+  if (inactivo() && !anclado()) await sb.auth.signOut().catch(() => {});
   const { data } = await sb.auth.getSession();
   if (!data.session) { ver('vEntrar'); return; }
+  if (anclado() && inactivo()) { bloquear(); return; }
   await paso2();
 }
 
@@ -271,7 +346,7 @@ $('fCodigo').onsubmit = (e) => { e.preventDefault(); verificar('cCodigo', 'cErr'
 $('cCodigo').oninput = () => { if ($('cCodigo').value.replace(/\D/g, '').length === 6) verificar('cCodigo', 'cErr', 'cBtn'); };
 $('cSalir').onclick = () => salir();
 
-async function salir() { cerrarHoja(); await sb.auth.signOut().catch(() => {}); LS.removeItem('pf-panel-ultimo'); CLIENTES = []; ver('vEntrar'); }
+async function salir() { cerrarHoja(); desanclar(); await sb.auth.signOut().catch(() => {}); LS.removeItem('pf-panel-ultimo'); CLIENTES = []; ver('vEntrar'); }
 $('pSalir').onclick = () => salir();
 
 // ---------- hablar con el servidor (la misma función que usa el programa) ----------
@@ -300,7 +375,12 @@ function estado(c) {
 }
 const usuarioDe = (c) => String(c.nombre || c.email || '').replace('@' + DOMINIO, '');
 
-async function abrirPanel() { ver('vPanel'); await cargar(); }
+async function abrirPanel() {
+  ver('vPanel');
+  await cargar();
+  // la primera vez (o hasta que digas que sí), te ofrece anclar este celular
+  if (!anclado() && LS.getItem('pf-panel-ofrecido') !== '1') { LS.setItem('pf-panel-ofrecido', '1'); hojaAnclar(); }
+}
 async function cargar() {
   $('pLista').innerHTML = '<div class="vacio">Cargando…</div>';
   try { const r = await admin('listar'); CLIENTES = r.clientes || []; pintar(); }
