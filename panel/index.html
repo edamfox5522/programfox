@@ -365,11 +365,28 @@ async function admin(accion, datos = {}) {
 // ---------- lista de clientes ----------
 let CLIENTES = [];
 const DIA = 86400000;
-function diasRestan(c) { if (!c.activo_hasta) return null; return Math.ceil((new Date(c.activo_hasta).getTime() - Date.now()) / DIA); }
+// días por FECHA (calendario): vence hoy = 0, mañana = 1… (así +30 días son 30 y no 31)
+const diaCero = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+function diasRestan(c) {
+  if (!c.activo_hasta) return null;
+  const h = new Date(c.activo_hasta);
+  if (h.getTime() <= Date.now()) return -Math.max(1, Math.round((diaCero(Date.now()) - diaCero(h)) / DIA));
+  return Math.round((diaCero(h) - diaCero(Date.now())) / DIA);
+}
+// nueva fecha sumando o quitando días (siempre hasta las 11:59 pm de ese día)
+function fechaNueva(c, dias) {
+  const vigente = c.activo_hasta && new Date(c.activo_hasta).getTime() > Date.now();
+  const base = vigente ? diaCero(c.activo_hasta) : diaCero(Date.now());
+  base.setDate(base.getDate() + dias); base.setHours(23, 59, 59, 0);
+  return base;
+}
+const fechaLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const cuantos = (d) => d === null ? 'sin activar' : d < 0 ? 'vencido' : d === 0 ? 'vence hoy' : `${d} día${d === 1 ? '' : 's'}`;
 function estado(c) {
   const d = diasRestan(c);
   if (d === null) return { cls: 'p-off', txt: 'Sin activar', orden: 3 };
-  if (d <= 0) return { cls: 'p-bad', txt: d === 0 ? 'Vence hoy' : `Vencido hace ${-d} d`, orden: 0 };
+  if (d < 0) return { cls: 'p-bad', txt: `Vencido hace ${-d} d`, orden: 0 };
+  if (d === 0) return { cls: 'p-warn', txt: 'Vence hoy', orden: 1 };
   if (d <= 3) return { cls: 'p-warn', txt: `Le quedan ${d} d`, orden: 1 };
   return { cls: 'p-ok', txt: `Le quedan ${d} d`, orden: 2 };
 }
@@ -389,7 +406,7 @@ async function cargar() {
 function pintar() {
   const q = $('pBuscar').value.trim().toLowerCase();
   let act = 0, pronto = 0, venc = 0;
-  for (const c of CLIENTES) { const d = diasRestan(c); if (d === null) continue; if (d <= 0) venc++; else if (d <= 3) { pronto++; act++; } else act++; }
+  for (const c of CLIENTES) { const d = diasRestan(c); if (d === null) continue; if (d < 0) venc++; else if (d <= 3) { pronto++; act++; } else act++; }
   $('rAct').textContent = act; $('rPronto').textContent = pronto; $('rVenc').textContent = venc;
   const lista = CLIENTES.filter((c) => !q || usuarioDe(c).includes(q) || String(c.notas || '').toLowerCase().includes(q))
     .sort((a, b) => estado(a).orden - estado(b).orden || (diasRestan(a) ?? 1e9) - (diasRestan(b) ?? 1e9));
@@ -459,6 +476,10 @@ function abrirCliente(id) {
     <p class="sub"><span class="punto ${e.cls}" style="display:inline-block;vertical-align:1px;margin-right:6px"></span>${esc(e.txt)}${c.activo_hasta ? ` · hasta ${esc(fecha(c.activo_hasta))}` : ''}</p>
     <div class="sec">Sumar días</div>
     <div class="grid3">${[[30, '1 mes'], [90, '3 meses'], [180, '6 meses'], [365, '1 año'], [7, '7 días'], [1, '1 día']].map(([d, t]) => `<button class="btn ok" data-sumar="${d}">+${t}</button>`).join('')}</div>
+    <div class="sec">Quitar días</div>
+    <div class="grid3">${[1, 7, 30].map((d) => `<button class="btn bad" data-sumar="-${d}">−${d} ${d === 1 ? 'día' : 'días'}</button>`).join('')}</div>
+    <div class="sec">Fecha exacta</div>
+    <div class="fila"><input id="kFecha" type="date" value="${c.activo_hasta ? fechaLocal(new Date(c.activo_hasta)) : ''}"><button class="btn" style="flex:0 0 auto" id="kFechaOk">Poner</button></div>
     <div class="sec">Notas (solo para ti)</div>
     <div class="fila"><input id="kNotas" value="${esc(c.notas || '')}" placeholder="ej: Nequi 13/10"><button class="btn" style="flex:0 0 auto" id="kGuardar">Guardar</button></div>
     <div class="sec">Cuenta</div>
@@ -467,10 +488,34 @@ function abrirCliente(id) {
     ${c.pc_nombre ? `<p class="muted" style="font-size:14px;margin:12px 0 0">PC: ${esc(c.pc_nombre)}</p>` : ''}
     <div class="err" id="kErr"></div>`);
   const hacer = async (btn, fn) => { btn.disabled = true; $('kErr').textContent = ''; try { await fn(); } catch (er) { $('kErr').textContent = er.message; btn.disabled = false; } };
-  $('hoja').querySelectorAll('[data-sumar]').forEach((b) => b.onclick = () => hacer(b, async () => {
-    const d = Number(b.dataset.sumar); const r = await admin('activar', { user_id: id, dias: d });
-    await cargar(); aviso(`+${d} días a ${u} (hasta ${fecha(r.activo_hasta)})`); abrirCliente(id);
-  }));
+  // siempre pregunta antes (por si te equivocas): muestra cómo está y cómo queda
+  const confirmar = (titulo, nueva, fn) => {
+    const q = nueva ? Math.round((diaCero(nueva) - diaCero(Date.now())) / DIA) : null;
+    abrirHoja(`<h3>${esc(titulo)}</h3>
+      <p class="sub">Ahora: <b>${esc(cuantos(diasRestan(c)))}</b>${c.activo_hasta ? ` · hasta ${esc(fecha(c.activo_hasta))}` : ''}</p>
+      <p class="sub">Queda: <b>${esc(nueva && nueva.getTime() > Date.now() ? cuantos(q) : 'vencido')}</b>${nueva ? ` · hasta ${esc(fecha(nueva.toISOString()))}` : ''}</p>
+      <div class="grid2" style="margin-top:14px"><button class="btn" id="kNo">Cancelar</button><button class="btn ok" id="kSi">Sí, hacerlo</button></div>
+      <div class="err" id="kErr"></div>`);
+    $('kNo').onclick = () => abrirCliente(id);
+    $('kSi').onclick = async () => { $('kSi').disabled = true; try { await fn(); } catch (er) { $('kErr').textContent = er.message; $('kSi').disabled = false; } };
+  };
+  $('hoja').querySelectorAll('[data-sumar]').forEach((b) => b.onclick = () => {
+    const d = Number(b.dataset.sumar), nueva = fechaNueva(c, d);
+    confirmar(d > 0 ? `¿Sumarle ${d} día${d === 1 ? '' : 's'} a ${u}?` : `¿Quitarle ${-d} día${d === -1 ? '' : 's'} a ${u}?`, nueva, async () => {
+      if (nueva.getTime() <= Date.now()) await admin('desactivar', { user_id: id });
+      else await admin('fecha', { user_id: id, hasta: nueva.toISOString() });
+      await cargar(); aviso(d > 0 ? `+${d} días a ${u} (hasta ${fecha(nueva.toISOString())})` : `−${-d} días a ${u}`); abrirCliente(id);
+    });
+  });
+  $('kFechaOk').onclick = () => {
+    const v = $('kFecha').value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { $('kErr').textContent = 'Escoge una fecha'; return; }
+    const nueva = new Date(v + 'T23:59:59');
+    confirmar(`¿Poner la fecha de ${u}?`, nueva, async () => {
+      await admin('fecha', { user_id: id, hasta: nueva.toISOString() });
+      await cargar(); aviso(`${u}: hasta ${fecha(nueva.toISOString())}`); abrirCliente(id);
+    });
+  };
   $('kGuardar').onclick = () => hacer($('kGuardar'), async () => { await admin('notas', { user_id: id, notas: $('kNotas').value.trim() }); await cargar(); aviso('Notas guardadas'); $('kGuardar').disabled = false; });
   $('kClave').onclick = () => hacer($('kClave'), async () => { const p = claveNueva(); await admin('password', { user_id: id, password: p }); hojaMensaje(`Nueva contraseña para ${u}`, mensaje(u, p, c.activo_hasta)); });
   $('kPc').onclick = () => hacer($('kPc'), async () => { await admin('liberar_pc', { user_id: id }); await cargar(); aviso('PC liberado: ya puede entrar desde otro PC'); abrirCliente(id); });
